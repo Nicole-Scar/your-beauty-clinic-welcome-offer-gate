@@ -1,46 +1,59 @@
 export default async function handler(req, res) {
   const { contactId } = req.query;
 
-  if (!contactId) return res.status(400).json({ error: "Missing contactId" });
+  if (!contactId) {
+    return res.status(400).json({ error: 'Missing contactId' });
+  }
 
-  const GHL_API_KEY = process.env.GHL_API_KEY?.trim();
-  if (!GHL_API_KEY) return res.status(401).json({ error: "Missing GHL API key" });
-
-  const endpoint = `https://api-eu1.gohighlevel.com/v1/contacts/${contactId}`;
+  const apiKey = process.env.GHL_API_KEY;
+  const baseUrls = [
+    'https://api-eu1.gohighlevel.com/v1',
+    'https://api.gohighlevel.com/v1'
+  ];
 
   try {
-    const response = await fetch(endpoint, {
-      headers: { Authorization: `Bearer ${GHL_API_KEY}` },
-    });
+    let contact = null;
+    for (const baseUrl of baseUrls) {
+      const response = await fetch(`${baseUrl}/contacts/${contactId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (response.ok) {
+        contact = await response.json();
+        break;
+      }
+    }
 
-    const json = await response.json().catch(() => null);
-
-    if (!response.ok || !json?.contact) {
-      return res.status(200).json({
-        contactFound: false,
-        redirectTo: "/invalid",
-        message: "Contact not found or fetch failed",
+    if (!contact) {
+      return res.status(404).json({
+        error: 'Contact not found or API fetch failed',
+        contactId,
       });
     }
 
-    const contact = json.contact;
-    const customFields = Array.isArray(contact.customField) ? contact.customField : [];
-    const tags = Array.isArray(contact.tags) ? contact.tags : [];
+    const fields = contact.contact?.customField || [];
+    const hasTag = (contact.contact?.tags || []).includes('welcomeOffer');
+    const welcomeOfferAccess = fields.find(f => f.name === 'welcomeOfferAccess')?.value;
+    const offerBooked = fields.find(f => f.name === 'offerBooked')?.value;
 
-    const welcomeOfferAccess = customFields.find(f => f.name === "welcomeOfferAccess")?.value === "Yes";
-    const offerBooked = customFields.find(f => f.name === "offerBooked")?.value === "Yes";
-    const hasTag = tags.includes("sent welcome offer tracking link");
+    const contactFound = !!contact;
+    const redirectTo =
+      contactFound && welcomeOfferAccess === 'Yes' && hasTag && offerBooked !== 'Yes'
+        ? 'https://your-booking-page.com'
+        : '/invalid';
 
-    const redirectTo = (welcomeOfferAccess && !offerBooked && hasTag) ? "/valid" : "/invalid";
-
-    res.status(200).json({
-      contactFound: true,
+    return res.status(200).json({
+      contactId,
+      contactFound,
+      hasTag,
       welcomeOfferAccess,
       offerBooked,
-      hasTag,
-      redirectTo
+      redirectTo,
     });
   } catch (err) {
-    res.status(500).json({ error: "Server error", details: err.message });
+    console.error('Server error:', err);
+    return res.status(500).json({
+      error: 'Server error',
+      details: err.message,
+    });
   }
 }
