@@ -1,99 +1,84 @@
+// api/validateOffer.js
+import fetch from "node-fetch";
+
 export default async function handler(req, res) {
-  const { contactId, testEnv } = req.query;
-  const GHL_API_KEY = process.env.GHL_API_KEY;
+  const { contactId } = req.query;
 
-  // Quick environment test
-  if (testEnv) {
-    return res.status(200).json({ envFound: !!GHL_API_KEY });
-  }
-
+  // 🧩 Step 1: Validate input
   if (!contactId) {
-    return res.status(400).json({ error: 'Missing contactId' });
+    return res.status(400).json({ error: "Missing contactId" });
   }
 
+  const GHL_API_KEY = process.env.GHL_API_KEY?.trim();
+  const endpoint = `https://api.gohighlevel.com/v1/contacts/${contactId}`;
+
+  const debug = {
+    contactId,
+    apiKeyPresent: !!GHL_API_KEY,
+    endpoint,
+  };
+
+  // 🧩 Step 2: Ensure API key exists
   if (!GHL_API_KEY) {
-    return res.status(401).json({ error: 'Missing GHL API key' });
+    return res.status(401).json({ ...debug, error: "Missing GHL API key" });
   }
 
-  const baseUrls = [
-    'https://api-eu1.gohighlevel.com',
-    'https://api-eu2.gohighlevel.com',
-    'https://api-uk.gohighlevel.com',
-    'https://api.gohighlevel.com',
-  ];
-
-  let json = null;
-  let usedEndpoint = null;
-  let lastError = null;
-
-  for (const base of baseUrls) {
+  try {
+    // 🧪 Step 3: Test network connectivity
     try {
-      const endpoint = `${base}/v1/contacts/${contactId}`;
-      const response = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${GHL_API_KEY}` },
-      });
-
-      if (response.ok) {
-        json = await response.json();
-        usedEndpoint = endpoint;
-        break;
+      const test = await fetch("https://api.gohighlevel.com/v1/");
+      if (test.ok) {
+        console.log("🌍 Network test to GHL Global succeeded");
       } else {
-        const errData = await response.text();
-        console.log(`❌ Failed [${base}] → ${response.status}: ${errData}`);
-        lastError = `${response.status}: ${errData}`;
+        console.error("⚠️ Network test to GHL Global returned non-OK", test.status);
       }
     } catch (err) {
-      console.log(`⚠️ Network error on ${base}:`, err.message);
-      lastError = err.message;
+      console.error("🌍 Network test to GHL Global failed:", err.message);
     }
-  }
 
-  if (!json) {
-    return res.status(502).json({
-      error: 'All endpoint attempts failed',
-      details: lastError,
+    // 🧩 Step 4: Fetch contact data
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${GHL_API_KEY}`,
+      },
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        ...debug,
+        error: "Server error fetching contact data",
+        details: JSON.stringify(json),
+      });
+    }
+
+    // 🧩 Step 5: Parse contact data
+    const contact = json.contact || {};
+    const customFields = contact.customField || [];
+    const tags = contact.tags || [];
+
+    const welcomeOfferAccess =
+      customFields.find((f) => f.name === "welcomeOfferAccess")?.value === "Yes";
+    const offerBooked =
+      customFields.find((f) => f.name === "offerBooked")?.value === "Yes";
+    const hasTag = tags.includes("sent welcome offer tracking link");
+
+    // 🧩 Step 6: Return structured response
+    res.json({
+      debug,
+      contactFound: !!contact.id,
+      welcomeOfferAccess,
+      offerBooked,
+      hasTag,
+      contact,
+    });
+  } catch (err) {
+    console.error("❌ Server error in validateOffer function:", err);
+    res.status(500).json({
+      ...debug,
+      error: "Server error in validateOffer function",
+      details: err.message,
     });
   }
-
-  const contact = json.contact || {};
-  const cf = contact.customField || {};
-  const tags = contact.tags || [];
-
-  // Handle both possible formats of custom fields
-  let welcomeOfferAccess = false;
-  let offerBooked = false;
-
-  if (Array.isArray(cf)) {
-    welcomeOfferAccess =
-      cf.find((f) => f.name === 'welcomeOfferAccess')?.value === 'Yes';
-    offerBooked = cf.find((f) => f.name === 'offerBooked')?.value === 'Yes';
-  } else {
-    welcomeOfferAccess = cf['welcomeOfferAccess'] === 'Yes';
-    offerBooked = cf['offerBooked'] === 'Yes';
-  }
-
-  // Handle both possible formats of tags
-  let hasTag = false;
-  if (Array.isArray(tags)) {
-    if (typeof tags[0] === 'string') {
-      hasTag = tags.includes('sent welcome offer tracking link');
-    } else if (typeof tags[0] === 'object') {
-      hasTag = tags.some(
-        (t) => t.name === 'sent welcome offer tracking link'
-      );
-    }
-  }
-
-  return res.status(200).json({
-    contactId,
-    welcomeOfferAccess,
-    offerBooked,
-    hasTag,
-    isValid: welcomeOfferAccess && !offerBooked && hasTag,
-    debug: {
-      usedEndpoint,
-      fetchedCustomFields: cf,
-      fetchedTags: tags,
-    },
-  });
 }
