@@ -2,52 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Welcome Offer</title>
+  <title>Welcome Offer Redirect</title>
 </head>
 <body>
-  <h1>Checking your welcome offer...</h1>
-
   <script>
-    console.log("🪶 STEP: SCRIPT LOADED ✅");
+    const params = new URLSearchParams(window.location.search);
+    const contactId = params.get('contactId');
 
-    // Parse contactId from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const contactId = urlParams.get('contactId');
+    if (!contactId) return window.location.href = '/invalid';
 
-    console.log("🪶 STEP: Parsed URL params", { contactId });
+    fetch(`/api/validateOffer?contactId=${contactId}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('API response:', data);
+        if (!data.contactFound) return window.location.href = '/invalid';
 
-    if (!contactId) {
-      console.error("❌ Missing contactId in URL");
-      document.body.innerHTML += "<p>Missing contactId. Cannot continue.</p>";
-    } else {
-      console.log("🪶 STEP: 📡 ContactId detected", contactId);
+        // Log failed conditions if redirecting to /invalid
+        if (data.redirectTo === '/invalid') {
+          console.warn('Redirecting to /invalid. Failed conditions:', {
+            welcomeOfferAccess: data.welcomeOfferAccess,
+            offerBooked: data.offerBooked,
+            hasTag: data.hasTag
+          });
+        }
 
-      // Fetch from your serverless function
-      fetch(`/api/validateOffer?contactId=${contactId}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log("🪶 STEP: Fetch response received", data);
-
-          // Pause 30 seconds for inspection
-          console.log("🕓 Pausing 30 seconds for inspection before redirect...");
-
-          setTimeout(() => {
-            let redirectUrl;
-
-            if (data.isValid) {
-              redirectUrl = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=" + contactId;
-            } else {
-              redirectUrl = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971?contactId=" + contactId;
-            }
-
-            console.log("🪶 STEP: Redirecting to:", redirectUrl);
-            window.location.href = redirectUrl;
-          }, 30000); // 30 seconds
-        })
-        .catch(err => {
-          console.error("🪶 STEP: Fetch error", err);
-        });
-    }
+        window.location.href = data.redirectTo || '/invalid';
+      })
+      .catch(err => {
+        console.error('Fetch error:', err);
+        window.location.href = '/invalid';
+      });
   </script>
 </body>
 </html>
