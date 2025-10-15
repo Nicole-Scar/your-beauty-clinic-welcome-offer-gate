@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome Offer</title>
+</head>
+<body>
+  <h1>Checking your welcome offer...</h1>
+
+  <script>
+    console.log("🪶 STEP: SCRIPT LOADED ✅");
+
+    // Parse contactId from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const contactId = urlParams.get('contactId');
+
+    console.log("🪶 STEP: Parsed URL params", { contactId });
+
+    if (!contactId) {
+      console.error("❌ Missing contactId in URL");
+      document.body.innerHTML += "<p>Missing contactId. Cannot continue.</p>";
+    } else {
+      console.log("🪶 STEP: 📡 ContactId detected", contactId);
+
+      // Fetch from your serverless function
+      fetch(`/api/validateOffer?contactId=${contactId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log("🪶 STEP: Fetch response received", data);
+
+          // Pause 30 seconds for inspection
+          console.log("🕓 Pausing 30 seconds for inspection before redirect...");
+
+          setTimeout(() => {
+            let redirectUrl;
+
+            if (data.isValid) {
+              redirectUrl = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=" + contactId;
+            } else {
+              redirectUrl = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971?contactId=" + contactId;
+            }
+
+            console.log("🪶 STEP: Redirecting to:", redirectUrl);
+            window.location.href = redirectUrl;
+          }, 30000); // 30 seconds
+        })
+        .catch(err => {
+          console.error("🪶 STEP: Fetch error", err);
+        });
+    }
+  </script>
+</body>
+</html>
