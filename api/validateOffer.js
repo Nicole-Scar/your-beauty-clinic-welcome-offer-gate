@@ -6,33 +6,48 @@ export default async function handler(req, res) {
   const GHL_API_KEY = process.env.GHL_API_KEY?.trim();
   if (!GHL_API_KEY) return res.status(401).json({ error: "Missing GHL API key" });
 
-  const endpoint = `https://api.gohighlevel.com/v1/contacts/${contactId}`;
+  const endpoint = `https://api-eu1.gohighlevel.com/v1/contacts/${contactId}`;
   const debug = { contactId, apiKeyPresent: !!GHL_API_KEY, endpoint };
 
   try {
+    // Fetch contact data from EU endpoint
     const response = await fetch(endpoint, {
       headers: { Authorization: `Bearer ${GHL_API_KEY}` },
     });
 
     const json = await response.json().catch(() => null);
 
-    if (!response.ok) {
-      return res.status(response.status).json({ ...debug, error: "API error", details: json });
+    if (!response.ok || !json?.contact) {
+      return res.status(response.status).json({
+        ...debug,
+        error: "API error",
+        details: json || { msg: "No response from GHL" },
+      });
     }
 
-    const contact = json?.contact || {};
+    const contact = json.contact;
     const customFields = Array.isArray(contact.customField) ? contact.customField : [];
     const tags = Array.isArray(contact.tags) ? contact.tags : [];
 
     const welcomeOfferAccess =
-      customFields.find((f) => f.name === "welcomeOfferAccess")?.value === "Yes";
+      customFields.find(f => f.name === "welcomeOfferAccess")?.value === "Yes";
     const offerBooked =
-      customFields.find((f) => f.name === "offerBooked")?.value === "Yes";
+      customFields.find(f => f.name === "offerBooked")?.value === "Yes";
     const hasTag = tags.includes("sent welcome offer tracking link");
 
-    return res.status(200).json({ debug, contactFound: !!contact.id, welcomeOfferAccess, offerBooked, hasTag });
+    return res.status(200).json({
+      debug,
+      contactFound: !!contact.id,
+      welcomeOfferAccess,
+      offerBooked,
+      hasTag
+    });
+
   } catch (err) {
-    console.error("Server error:", err);
-    return res.status(500).json({ ...debug, error: "Server error in validateOffer", details: err.message });
+    return res.status(500).json({
+      ...debug,
+      error: "Server error in validateOffer function",
+      details: err.message
+    });
   }
 }
