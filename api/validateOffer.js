@@ -1,62 +1,28 @@
-// api/validateOffer.js
-import fetch from "node-fetch";
-
 export default async function handler(req, res) {
   const { contactId } = req.query;
 
-  // 🧩 Step 1: Validate input
-  if (!contactId) {
-    return res.status(400).json({ error: "Missing contactId" });
-  }
+  if (!contactId) return res.status(400).json({ error: "Missing contactId" });
 
   const GHL_API_KEY = process.env.GHL_API_KEY?.trim();
+  if (!GHL_API_KEY) return res.status(401).json({ error: "Missing GHL API key" });
+
   const endpoint = `https://api.gohighlevel.com/v1/contacts/${contactId}`;
-
-  const debug = {
-    contactId,
-    apiKeyPresent: !!GHL_API_KEY,
-    endpoint,
-  };
-
-  // 🧩 Step 2: Ensure API key exists
-  if (!GHL_API_KEY) {
-    return res.status(401).json({ ...debug, error: "Missing GHL API key" });
-  }
+  const debug = { contactId, apiKeyPresent: !!GHL_API_KEY, endpoint };
 
   try {
-    // 🧪 Step 3: Test network connectivity
-    try {
-      const test = await fetch("https://api.gohighlevel.com/v1/");
-      if (test.ok) {
-        console.log("🌍 Network test to GHL Global succeeded");
-      } else {
-        console.error("⚠️ Network test to GHL Global returned non-OK", test.status);
-      }
-    } catch (err) {
-      console.error("🌍 Network test to GHL Global failed:", err.message);
-    }
-
-    // 🧩 Step 4: Fetch contact data
     const response = await fetch(endpoint, {
-      headers: {
-        Authorization: `Bearer ${GHL_API_KEY}`,
-      },
+      headers: { Authorization: `Bearer ${GHL_API_KEY}` },
     });
 
     const json = await response.json().catch(() => null);
 
     if (!response.ok) {
-      return res.status(response.status).json({
-        ...debug,
-        error: "Server error fetching contact data",
-        details: JSON.stringify(json),
-      });
+      return res.status(response.status).json({ ...debug, error: "API error", details: json });
     }
 
-    // 🧩 Step 5: Parse contact data
-    const contact = json.contact || {};
-    const customFields = contact.customField || [];
-    const tags = contact.tags || [];
+    const contact = json?.contact || {};
+    const customFields = Array.isArray(contact.customField) ? contact.customField : [];
+    const tags = Array.isArray(contact.tags) ? contact.tags : [];
 
     const welcomeOfferAccess =
       customFields.find((f) => f.name === "welcomeOfferAccess")?.value === "Yes";
@@ -64,21 +30,9 @@ export default async function handler(req, res) {
       customFields.find((f) => f.name === "offerBooked")?.value === "Yes";
     const hasTag = tags.includes("sent welcome offer tracking link");
 
-    // 🧩 Step 6: Return structured response
-    res.json({
-      debug,
-      contactFound: !!contact.id,
-      welcomeOfferAccess,
-      offerBooked,
-      hasTag,
-      contact,
-    });
+    return res.status(200).json({ debug, contactFound: !!contact.id, welcomeOfferAccess, offerBooked, hasTag });
   } catch (err) {
-    console.error("❌ Server error in validateOffer function:", err);
-    res.status(500).json({
-      ...debug,
-      error: "Server error in validateOffer function",
-      details: err.message,
-    });
+    console.error("Server error:", err);
+    return res.status(500).json({ ...debug, error: "Server error in validateOffer", details: err.message });
   }
 }
