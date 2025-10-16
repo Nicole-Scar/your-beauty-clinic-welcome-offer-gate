@@ -1,31 +1,40 @@
-// File: /api/validateOffer.js
+// api/validateOffer.js
+import fetch from "node-fetch";
 
 export default async function handler(req, res) {
   try {
     const { contactId } = req.query;
-    const apiKey = process.env.GHL_API_KEY;
-    const locationId = process.env.GHL_LOCATION_ID;
 
-    if (!contactId) return res.status(400).send("Missing contactId");
-    if (!apiKey || !locationId) return res.status(500).send("Missing API credentials");
+    if (!contactId) {
+      return res.status(400).json({ error: "Missing contactId" });
+    }
 
-    // ✅ GHL REST API endpoint (this one works!)
-    const url = `https://rest.gohighlevel.com/v1/contacts/${contactId}`;
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    console.log("🕹️ validateOffer called, contactId:", contactId);
 
+    // Use ONLY the working endpoint
+    const contactUrl = `https://rest.gohighlevel.com/v1/contacts/${contactId}`;
+    const headers = {
+      Authorization: `Bearer ${process.env.GHL_API_KEY}`, // API Key stored in Vercel
+    };
+
+    const response = await fetch(contactUrl, { headers });
     const data = await response.json();
 
-    if (!data.contact) return res.status(404).send("Contact not found");
+    console.log("Raw API response:", data);
 
-    const contact = data.contact;
-    const tags = contact.tags || [];
+    if (!data.contact) {
+      // Contact not found
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321"
+      );
+    }
 
-    // ✅ Check for your target tag
-    const hasTrackingTag = tags.includes("sent welcome offer tracking link");
+    // Check if contact has the "sent welcome offer tracking link" tag
+    const hasTrackingTag = data.contact.tags?.includes(
+      "sent welcome offer tracking link"
+    );
 
-    // Redirect logic
     if (hasTrackingTag) {
       // Contact already received the offer link
       return res.redirect(
