@@ -15,26 +15,28 @@
     } else {
       console.log('🪶 ContactId detected:', contactId);
 
-      // 30-second pause for inspection
-      setTimeout(() => {
-        fetch(`/api/validateOffer?contactId=${contactId}`)
-          .then(res => res.json())
-          .then(data => {
-            console.log('API response received:', data);
+      fetch(`/api/validateOffer?contactId=${contactId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('API response received:', data);
 
-            if (!data.contactFound || !data.redirectTo) {
-              console.warn('Redirecting to invalid page');
-              return window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
+          // Pause for inspection (optional)
+          setTimeout(() => {
+            if (!data.contactId || !data.redirectTo) {
+              console.warn('Redirecting to invalid page due to failed checks');
+              window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
+              return;
             }
 
             // Redirect according to API response
+            console.log('➡️ Redirecting to:', data.redirectTo);
             window.location.href = data.redirectTo;
-          })
-          .catch(err => {
-            console.error('Fetch error:', err);
-            window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
-          });
-      }, 30000); // 30-second pause
+          }, 30000); // 30 seconds
+        })
+        .catch(err => {
+          console.error('Fetch error:', err);
+          window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
+        });
     }
   </script>
 </body>

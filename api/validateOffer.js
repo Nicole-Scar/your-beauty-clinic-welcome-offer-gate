@@ -1,51 +1,40 @@
-import fetch from "node-fetch";
+import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
-  const contactId = req.query.contactId;
-  const apiKey = process.env.GHL_API_KEY; // Make sure your API Key is set in Vercel
-  const locationId = process.env.GHL_LOCATION_ID; // Optional if you use location-based fetch
-
-  if (!contactId) {
-    console.error("❌ Missing contactId in request");
-    return res.status(400).send("Missing contactId");
-  }
-
-  console.log("🕹️ validateOffer called, contactId:", contactId);
-  console.log("API Key (masked):", apiKey?.slice(0, 10) + "...");
-
   try {
-    // Fetch contact from the global endpoint
-    const contactRes = await fetch(`https://rest.gohighlevel.com/v1/contacts/${contactId}`, {
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+    const { contactId } = req.query;
+    if (!contactId) {
+      return res.status(400).json({ error: "Missing contactId" });
+    }
+
+    const API_KEY = process.env.GHL_API_KEY;
+    const LOCATION_ID = process.env.GHL_LOCATION_ID;
+
+    // Fetch contact
+    const endpoint = `https://rest.gohighlevel.com/v1/contacts/${contactId}`;
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${API_KEY}` }
     });
+    const contact = await response.json();
 
-    const contactData = await contactRes.json();
-    console.log("🔹 Raw API response:", contactData);
+    if (!contact || contact.msg === "Not found") {
+      return res.status(404).json({ error: "Contact not found" });
+    }
 
-    // Check for the "sent welcome offer tracking link" tag
-    const tags = contactData?.contact?.tags || [];
-    const hasTrackingTag = tags.includes("sent welcome offer tracking link");
+    // Check for "sent welcome offer tracking link" tag
+    const hasTrackingTag = contact.contact?.tags?.includes("sent welcome offer tracking link");
+
     console.log("Has tracking tag?", hasTrackingTag);
 
-    // Redirect logic with explicit logging
-    if (hasTrackingTag) {
-      console.log("➡️ Redirecting to VALID page");
-      return res.redirect(
-        302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-valid-340971"
-      );
-    } else {
-      console.log("➡️ Redirecting to INVALID page");
-      return res.redirect(
-        302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321"
-      );
-    }
+    // Return redirect URL as JSON
+    const redirectTo = hasTrackingTag
+      ? "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-valid-340971"
+      : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321";
+
+    return res.status(200).json({ contactId, redirectTo, hasTrackingTag });
+
   } catch (error) {
     console.error("Error in validateOffer:", error);
-    return res.status(500).send("Server error");
+    return res.status(500).json({ error: "Server error" });
   }
 }
