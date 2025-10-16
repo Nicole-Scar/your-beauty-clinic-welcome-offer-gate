@@ -6,8 +6,9 @@
 </head>
 <body>
   <script>
+    // Parse URL parameters
     const params = new URLSearchParams(window.location.search);
-    const contactId = params.get('contactId'); // must come from URL
+    const contactId = params.get('contactId'); // Must match exactly the URL parameter
 
     if (!contactId) {
       console.error('❌ No contactId in URL');
@@ -20,9 +21,15 @@
         .then(data => {
           console.log('API response:', data);
 
-          if (!data.contactFound) {
-            console.warn('Redirecting to /invalid');
-            return window.location.href = '/invalid';
+          if (!data.contactFound) return window.location.href = '/invalid';
+
+          // Log failed conditions if redirecting
+          if (data.redirectTo === '/invalid') {
+            console.warn('Redirecting to /invalid. Failed conditions:', {
+              welcomeOfferAccess: data.welcomeOfferAccess,
+              offerBooked: data.offerBooked,
+              hasTag: data.hasTag
+            });
           }
 
           window.location.href = data.redirectTo || '/invalid';

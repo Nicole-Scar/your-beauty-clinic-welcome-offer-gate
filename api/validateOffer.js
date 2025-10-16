@@ -1,6 +1,5 @@
-// /api/validateOffer.js
 export const config = {
-  regions: ['lhr1']  // forces function to run in London
+  regions: ['lhr1'] // London region
 };
 
 export default async function handler(req, res) {
@@ -15,7 +14,7 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GHL_API_KEY;
   const baseUrls = [
-    'https://api-eu1.gohighlevel.com/v1', // EU endpoint
+    'https://api-eu1.gohighlevel.com/v1', // EU
     'https://api.gohighlevel.com/v1'       // fallback
   ];
 
@@ -30,11 +29,11 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         lastError = `HTTP ${response.status} from ${baseUrl}`;
-        continue; // try next baseUrl
+        continue; // try next endpoint
       }
 
       contact = await response.json();
-      break; // success
+      break;
     } catch (err) {
       lastError = err.message;
     }
