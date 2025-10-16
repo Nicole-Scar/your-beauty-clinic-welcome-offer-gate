@@ -1,8 +1,10 @@
 {
   "functions": {
-    "api/**/*": {
-      "regions": ["lhr1"]
-    }
+    "regions": ["eu-west-2"]
   },
-  "regions": ["lhr1"]
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
+    }
+  }
 }
