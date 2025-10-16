@@ -3,85 +3,62 @@ import fetch from 'node-fetch';
 export default async function handler(req, res) {
   const { contactId } = req.query;
 
-  if (!contactId) {
-    console.error('❌ No contactId provided');
-    return res.status(400).json({ error: 'Missing contactId' });
-  }
+  console.log("🕹️ validateOffer called, contactId:", contactId);
 
+  // Load API key from environment variables
   const apiKey = process.env.GHL_API_KEY;
   if (!apiKey) {
-    console.error('❌ No API Key found in environment variables');
-    return res.status(500).json({ error: 'Missing API Key' });
+    console.error("❌ Missing API key in environment variables");
+    return res.status(500).json({ error: "Missing API key" });
   }
 
-  // Mask API Key for logging
-  const maskedKey = apiKey.slice(0, 4) + '…' + apiKey.slice(-4);
+  const maskedKey = apiKey.slice(0, 4) + "…" + apiKey.slice(-4);
+  console.log("API Key (masked):", maskedKey);
 
-  // Possible endpoints to try
+  const locationId = "izQwdnA1xbbcTt7Z7wzU"; // ✅ confirmed correct
+
+  // All possible endpoints (including alternate domains)
   const endpoints = [
     `https://api.gohighlevel.com/v1/contacts/${contactId}`,
-    `https://api.gohighlevel.com/v1/locations/izQwdnA1xbbcTt7Z7wzU/contacts/${contactId}`
+    `https://api.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`,
+    `https://services.leadconnectorhq.com/contacts/${contactId}`,
+    `https://services.leadconnectorhq.com/locations/${locationId}/contacts/${contactId}`,
+    `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
+    `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
   ];
 
-  console.log('🕹️ validateOffer called, contactId:', contactId);
-  console.log('API Key (masked):', maskedKey);
-
-  let contact = null;
-  let triedEndpoints = [];
+  let contactData = null;
 
   for (const url of endpoints) {
+    console.log(`🔹 Trying endpoint: ${url}`);
     try {
-      console.log('🔹 Fetching contact from:', url);
       const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey}` }
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
       });
 
       const data = await response.json();
-      console.log('Raw API response:', data);
+      console.log("Raw API response:", data);
 
-      triedEndpoints.push({ url, status: response.status, data });
-
-      if (response.ok) {
-        contact = data;
+      // Break if the response looks valid
+      if (response.ok && data && !data.msg?.includes("Not found")) {
+        console.log(`✅ Success with endpoint: ${url}`);
+        contactData = data;
         break;
       }
-    } catch (err) {
-      console.error(`❌ Fetch failed for ${url}:`, err.message);
-      triedEndpoints.push({ url, error: err.message });
+    } catch (error) {
+      console.error(`⚠️ Error calling ${url}:`, error.message);
     }
   }
 
-  if (!contact) {
-    console.error('❌ Could not fetch contact from any endpoint');
-    return res.status(404).json({
-      error: 'Contact not found or API fetch failed',
-      contactId,
-      triedEndpoints
-    });
+  if (!contactData) {
+    console.error("❌ Could not fetch contact from any endpoint");
+    return res.status(404).json({ error: "Contact not found in any endpoint" });
   }
 
-  // Check custom fields and tags
-  const fields = contact.contact?.customField || [];
-  const tags = contact.contact?.tags || [];
-  const hasTag = tags.includes('welcomeOffer');
-  const welcomeOfferAccess = fields.find(f => f.name === 'welcomeOfferAccess')?.value;
-  const offerBooked = fields.find(f => f.name === 'offerBooked')?.value;
-
-  const contactFound = !!contact;
-  const redirectTo =
-    contactFound && welcomeOfferAccess === 'Yes' && hasTag && offerBooked !== 'Yes'
-      ? 'https://your-booking-page.com'
-      : 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
-
-  console.log('✅ Final computed values:', { contactFound, hasTag, welcomeOfferAccess, offerBooked, redirectTo });
-
-  return res.status(200).json({
-    contactId,
-    contactFound,
-    hasTag,
-    welcomeOfferAccess,
-    offerBooked,
-    redirectTo,
-    triedEndpoints
-  });
+  res.status(200).json({ contactData });
 }
