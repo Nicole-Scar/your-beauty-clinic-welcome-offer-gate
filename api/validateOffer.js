@@ -1,3 +1,7 @@
+export const config = {
+  regions: ['lhr1']
+};
+
 export default async function handler(req, res) {
   const { contactId } = req.query;
 
