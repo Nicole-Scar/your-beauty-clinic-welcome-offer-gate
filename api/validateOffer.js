@@ -3,6 +3,9 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // ⏱ 30-second pause for inspection
+  await new Promise(resolve => setTimeout(resolve, 30000));
+
   const { contactId } = req.query;
   const apiKey = process.env.GHL_API_KEY;
 
@@ -21,17 +24,21 @@ export default async function handler(req, res) {
   let contact = null;
   let lastError = null;
 
+  // 🔹 Try both endpoints
   for (const baseUrl of baseUrls) {
     try {
       const response = await fetch(`${baseUrl}/contacts/${contactId}`, {
         headers: { Authorization: `Bearer ${apiKey}` }
       });
+
       if (!response.ok) {
         lastError = `HTTP ${response.status} from ${baseUrl}`;
         continue;
       }
+
       contact = await response.json();
       break;
+
     } catch (err) {
       lastError = err.message;
     }
@@ -49,16 +56,27 @@ export default async function handler(req, res) {
   const fields = contact?.contact?.customFields || [];
   const tags = contact?.contact?.tags || [];
 
-  // ✅ Correct tag check
+  // ✅ Safe checks
+  const welcomeOfferAccess = (fields.find(f => f.name === 'welcomeOfferAccess')?.value || '').trim();
+  const offerBooked = (fields.find(f => f.name === 'offerBooked')?.value || '').trim();
   const hasTag = tags.includes('sent welcome offer tracking link');
-  const welcomeOfferAccess = fields.find(f => f.name === 'welcomeOfferAccess')?.value;
-  const offerBooked = fields.find(f => f.name === 'offerBooked')?.value;
+
+  // 🔹 Debug logs
+  console.log('Tags:', tags);
+  console.log('welcomeOfferAccess:', welcomeOfferAccess);
+  console.log('offerBooked:', offerBooked);
+  console.log('hasTag:', hasTag);
 
   const contactFound = Boolean(contact);
   const redirectTo =
-    contactFound && welcomeOfferAccess === 'Yes' && hasTag && offerBooked !== 'Yes'
+    contactFound &&
+    welcomeOfferAccess === 'Yes' &&
+    hasTag &&
+    offerBooked !== 'Yes'
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${contactId}`
       : 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
+
+  console.log('Redirecting to:', redirectTo);
 
   return res.status(200).json({
     contactId,
