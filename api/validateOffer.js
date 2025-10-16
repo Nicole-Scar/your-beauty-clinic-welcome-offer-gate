@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 
 export default async function handler(req, res) {
   try {
-    const { contactId } = req.query;
+    const contactId = req.query.contactId;
 
     if (!contactId) {
       console.error("❌ Missing contactId");
@@ -14,22 +14,25 @@ export default async function handler(req, res) {
 
     console.log("🕹️ validateOffer called, contactId:", contactId);
 
-    const API_KEY = process.env.GHL_API_KEY;
-    const LOCATION_ID = process.env.GHL_LOCATION_ID;
+    const API_KEY = process.env.GHL_API_KEY; // stored in Vercel
+    const LOCATION_ID = process.env.GHL_LOCATION_ID; // stored in Vercel
 
+    // Try endpoints
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
-      `https://rest.gohighlevel.com/v1/locations/${LOCATION_ID}/contacts/${contactId}`
+      `https://rest.gohighlevel.com/v1/locations/${LOCATION_ID}/contacts/${contactId}`,
     ];
 
-    let contact = null;
-    let endpointUsed = null;
+    let contact;
+    let endpointUsed;
 
     for (const url of endpoints) {
       try {
-        console.log("🔹 Trying endpoint:", url);
         const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${API_KEY}` }
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+          },
         });
 
         const data = await response.json();
@@ -38,12 +41,11 @@ export default async function handler(req, res) {
           contact = data.contact;
           endpointUsed = url;
           console.log("✅ Contact fetched:", contact.id);
+          console.log("🔹 Full contact object:", JSON.stringify(contact, null, 2));
           break;
-        } else {
-          console.warn("⚠️ No contact in response from", url, data);
         }
       } catch (err) {
-        console.error("⚠️ Could not fetch contact from", url, err);
+        console.warn(`⚠️ Could not fetch from ${url}:`, err.message);
       }
     }
 
@@ -55,14 +57,11 @@ export default async function handler(req, res) {
       );
     }
 
-    const hasTrackingTag = contact.tags?.includes(
-      "sent welcome offer tracking link"
-    );
-    console.log("🔹 Endpoint used:", endpointUsed);
+    // Check if contact has the tag
+    const hasTrackingTag = contact.tags?.includes("sent welcome offer tracking link");
     console.log("Has tracking tag?", hasTrackingTag);
 
     if (hasTrackingTag) {
-      // Append contactId to correct valid link
       return res.redirect(
         302,
         `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`
@@ -75,6 +74,6 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error("Error in validateOffer:", error);
-    return res.status(500).send("Server error");
+    res.status(500).send("Server error");
   }
 }
