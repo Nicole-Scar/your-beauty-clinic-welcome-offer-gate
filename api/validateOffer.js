@@ -1,64 +1,46 @@
-import fetch from 'node-fetch';
+// File: /api/validateOffer.js
 
 export default async function handler(req, res) {
-  const { contactId } = req.query;
+  try {
+    const { contactId } = req.query;
+    const apiKey = process.env.GHL_API_KEY;
+    const locationId = process.env.GHL_LOCATION_ID;
 
-  console.log("🕹️ validateOffer called, contactId:", contactId);
+    if (!contactId) return res.status(400).send("Missing contactId");
+    if (!apiKey || !locationId) return res.status(500).send("Missing API credentials");
 
-  // Load API key from environment variables
-  const apiKey = process.env.GHL_API_KEY;
-  if (!apiKey) {
-    console.error("❌ Missing API key in environment variables");
-    return res.status(500).json({ error: "Missing API key" });
-  }
+    // ✅ GHL REST API endpoint (this one works!)
+    const url = `https://rest.gohighlevel.com/v1/contacts/${contactId}`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
 
-  const maskedKey = apiKey.slice(0, 4) + "…" + apiKey.slice(-4);
-  console.log("API Key (masked):", maskedKey);
+    const data = await response.json();
 
-  const locationId = "izQwdnA1xbbcTt7Z7wzU"; // ✅ confirmed correct
+    if (!data.contact) return res.status(404).send("Contact not found");
 
-  // All possible endpoints (including alternate domains)
-  const endpoints = [
-    `https://api.gohighlevel.com/v1/contacts/${contactId}`,
-    `https://api.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`,
-    `https://services.leadconnectorhq.com/contacts/${contactId}`,
-    `https://services.leadconnectorhq.com/locations/${locationId}/contacts/${contactId}`,
-    `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
-    `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
-  ];
+    const contact = data.contact;
+    const tags = contact.tags || [];
 
-  let contactData = null;
+    // ✅ Check for your target tag
+    const hasTrackingTag = tags.includes("sent welcome offer tracking link");
 
-  for (const url of endpoints) {
-    console.log(`🔹 Trying endpoint: ${url}`);
-    try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-
-      const data = await response.json();
-      console.log("Raw API response:", data);
-
-      // Break if the response looks valid
-      if (response.ok && data && !data.msg?.includes("Not found")) {
-        console.log(`✅ Success with endpoint: ${url}`);
-        contactData = data;
-        break;
-      }
-    } catch (error) {
-      console.error(`⚠️ Error calling ${url}:`, error.message);
+    // Redirect logic
+    if (hasTrackingTag) {
+      // Contact already received the offer link
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-valid-340971"
+      );
+    } else {
+      // No tag found — invalid or not yet sent
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321"
+      );
     }
+  } catch (error) {
+    console.error("Error in validateOffer:", error);
+    res.status(500).send("Server error");
   }
-
-  if (!contactData) {
-    console.error("❌ Could not fetch contact from any endpoint");
-    return res.status(404).json({ error: "Contact not found in any endpoint" });
-  }
-
-  res.status(200).json({ contactData });
 }
