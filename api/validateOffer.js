@@ -3,6 +3,11 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  console.log('🕹️ Function executing region:', process.env.VERCEL_REGION);
+  ...
+}
+
+export default async function handler(req, res) {
   const { contactId } = req.query;
 
   if (!contactId) {
