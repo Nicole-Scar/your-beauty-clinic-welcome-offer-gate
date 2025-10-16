@@ -17,20 +17,21 @@
 
       fetch(`/api/validateOffer?contactId=${contactId}`)
         .then(res => res.json())
-        .then(async data => {
-          console.log('API response:', data);
+        .then(data => {
+          console.log('API response received:', data);
 
-          if (!data.contactFound || !data.redirectTo) {
-            console.warn('Redirecting to invalid page');
-            return window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
-          }
+          // Pause for 30 seconds for inspection
+          setTimeout(() => {
+            if (!data.contactId || !data.redirectTo) {
+              console.warn('Redirecting to invalid page due to failed checks');
+              window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
+              return;
+            }
 
-          // 30-second pause for inspection
-          console.log('⏳ Pausing for 30 seconds before redirect...');
-          await new Promise(resolve => setTimeout(resolve, 30000));
-
-          // Redirect according to API response
-          window.location.href = data.redirectTo;
+            // Redirect according to API response
+            console.log('➡️ Redirecting to:', data.redirectTo);
+            window.location.href = data.redirectTo;
+          }, 30000); // 30,000 ms = 30 seconds
         })
         .catch(err => {
           console.error('Fetch error:', err);
