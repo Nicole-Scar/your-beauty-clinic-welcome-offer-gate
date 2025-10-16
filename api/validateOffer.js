@@ -5,17 +5,17 @@ export default async function validateOffer(req, res) {
     const { contactId } = req.query;
 
     if (!contactId) {
-      console.error('❌ Missing contactId');
+      console.log("❌ No contactId found in URL");
       return res.redirect(
         302,
-        'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971'
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
       );
     }
 
-    console.log('🕹️ validateOffer called, contactId:', contactId);
+    console.log("🕹️ validateOffer called, contactId:", contactId);
 
-    const apiKey = process.env.GHL_API_KEY; // stored in Vercel
-    const locationId = process.env.GHL_LOCATION_ID; // stored in Vercel
+    const apiKey = process.env.GHL_API_KEY;
+    const locationId = process.env.GHL_LOCATION_ID;
 
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
@@ -26,50 +26,55 @@ export default async function validateOffer(req, res) {
     let usedEndpoint;
 
     for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint, {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
+      console.log("🔹 Trying endpoint:", endpoint);
+      const response = await fetch(endpoint, {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-        const data = await response.json();
+      const data = await response.json();
+      console.log("🔸 Raw response keys:", Object.keys(data));
 
-        if (response.ok && data.contact) {
-          contact = data.contact;
-          usedEndpoint = endpoint;
-          console.log('✅ Contact fetched:', contact.id);
-          console.log('🔹 Endpoint used:', usedEndpoint);
-          break;
-        }
-      } catch (err) {
-        console.warn(`⚠️ Could not fetch from ${endpoint}`, err);
+      if (response.ok && data.contact) {
+        contact = data.contact;
+        usedEndpoint = endpoint;
+        console.log("✅ Contact fetched:", contact.id);
+        break;
+      } else {
+        console.log(`❌ Failed from ${endpoint} - Status: ${response.status}`);
       }
     }
 
     if (!contact) {
-      console.error('❌ Could not fetch contact from any endpoint');
+      console.error("❌ No contact found after all endpoints");
       return res.redirect(
         302,
-        'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971'
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
       );
     }
 
-    // Check if contact has the "sent welcome offer tracking link" tag
-    const hasTrackingTag = contact.tags.includes('sent welcome offer tracking link');
-    console.log('Has tracking tag?', hasTrackingTag);
+    console.log("🧩 Contact tags found:", contact.tags);
 
-    // Determine redirect URL
-    const redirectTo = hasTrackingTag
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`
-      : 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
+    const hasTrackingTag = Array.isArray(contact.tags)
+      ? contact.tags.includes("sent welcome offer tracking link")
+      : false;
 
-    console.log('➡️ Redirecting to:', redirectTo);
+    console.log("✅ hasTrackingTag result:", hasTrackingTag);
+
+    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`;
+    const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+
+    const redirectTo = hasTrackingTag ? validPage : invalidPage;
+    console.log("➡️ Redirecting to:", redirectTo);
+
+    // Force stop here to ensure redirect happens once
+    res.setHeader("Cache-Control", "no-store");
     return res.redirect(302, redirectTo);
 
   } catch (error) {
-    console.error('Error in validateOffer:', error);
-    return res.status(500).send('Server error');
+    console.error("🔥 Error in validateOffer:", error);
+    return res.status(500).send("Server error");
   }
 }
