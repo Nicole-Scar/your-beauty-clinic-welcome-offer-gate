@@ -6,37 +6,31 @@
 </head>
 <body>
   <script>
-    // Parse URL parameters
     const params = new URLSearchParams(window.location.search);
     const contactId = params.get('contactId');
 
     if (!contactId) {
       console.error('❌ No contactId in URL');
-      window.location.href = '/invalid';
+      window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
     } else {
       console.log('🪶 ContactId detected:', contactId);
 
-      // ✅ Correct endpoint
       fetch(`/api/validateOffer?contactId=${contactId}`)
         .then(res => res.json())
         .then(data => {
           console.log('API response:', data);
 
-          if (!data.contactFound) return window.location.href = '/invalid';
-
-          if (data.redirectTo === '/invalid') {
-            console.warn('Redirecting to /invalid. Failed conditions:', {
-              welcomeOfferAccess: data.welcomeOfferAccess,
-              offerBooked: data.offerBooked,
-              hasTag: data.hasTag
-            });
+          if (!data.contactFound || !data.redirectTo) {
+            console.warn('Redirecting to invalid page');
+            return window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
           }
 
-          window.location.href = data.redirectTo || '/invalid';
+          // Redirect according to API response
+          window.location.href = data.redirectTo;
         })
         .catch(err => {
           console.error('Fetch error:', err);
-          window.location.href = '/invalid';
+          window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
         });
     }
   </script>

@@ -49,15 +49,16 @@ export default async function handler(req, res) {
   const fields = contact?.contact?.customFields || [];
   const tags = contact?.contact?.tags || [];
 
-  const hasTag = tags.includes('welcomeOffer');
+  // ✅ Correct tag check
+  const hasTag = tags.includes('sent welcome offer tracking link');
   const welcomeOfferAccess = fields.find(f => f.name === 'welcomeOfferAccess')?.value;
   const offerBooked = fields.find(f => f.name === 'offerBooked')?.value;
 
   const contactFound = Boolean(contact);
   const redirectTo =
     contactFound && welcomeOfferAccess === 'Yes' && hasTag && offerBooked !== 'Yes'
-      ? 'https://your-booking-page.com'
-      : '/invalid';
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${contactId}`
+      : 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
 
   return res.status(200).json({
     contactId,
