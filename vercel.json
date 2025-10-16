@@ -1,6 +1,8 @@
 {
   "functions": {
-    "regions": ["eu-west-2"]
+    "api/**/*": {
+      "regions": ["eu-west-2"]
+    }
   },
   "build": {
     "env": {
