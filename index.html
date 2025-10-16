@@ -1,27 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Welcome Offer Redirect</title>
 </head>
 <body>
   <script>
     const params = new URLSearchParams(window.location.search);
-    const contactId = params.get('contactId');
+    const contactId = params.get('contactId'); // must come from URL
 
-    if (!contactId) window.location.href = '/invalid';
+    if (!contactId) {
+      console.error('❌ No contactId in URL');
+      window.location.href = '/invalid';
+    } else {
+      console.log('🪶 ContactId detected:', contactId);
 
-    fetch(`/api/validateOffer?contactId=${contactId}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log('API response:', data);
-        if (!data.contactFound) return window.location.href = '/invalid';
-        window.location.href = data.redirectTo || '/invalid';
-      })
-      .catch(err => {
-        console.error('Error:', err);
-        window.location.href = '/invalid';
-      });
+      fetch(`/api/validateOffer?contactId=${contactId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('API response:', data);
+
+          if (!data.contactFound) {
+            console.warn('Redirecting to /invalid');
+            return window.location.href = '/invalid';
+          }
+
+          window.location.href = data.redirectTo || '/invalid';
+        })
+        .catch(err => {
+          console.error('Fetch error:', err);
+          window.location.href = '/invalid';
+        });
+    }
   </script>
 </body>
 </html>
