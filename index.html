@@ -8,7 +8,7 @@
   <script>
     // Parse URL parameters
     const params = new URLSearchParams(window.location.search);
-    const contactId = params.get('contactId'); // Must match exactly the URL parameter
+    const contactId = params.get('contactId');
 
     if (!contactId) {
       console.error('❌ No contactId in URL');
@@ -16,6 +16,7 @@
     } else {
       console.log('🪶 ContactId detected:', contactId);
 
+      // ✅ Correct endpoint
       fetch(`/api/validateOffer?contactId=${contactId}`)
         .then(res => res.json())
         .then(data => {
@@ -23,7 +24,6 @@
 
           if (!data.contactFound) return window.location.href = '/invalid';
 
-          // Log failed conditions if redirecting
           if (data.redirectTo === '/invalid') {
             console.warn('Redirecting to /invalid. Failed conditions:', {
               welcomeOfferAccess: data.welcomeOfferAccess,

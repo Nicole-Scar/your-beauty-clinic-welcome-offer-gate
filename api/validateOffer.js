@@ -4,6 +4,7 @@ export const config = {
 
 export default async function handler(req, res) {
   const { contactId } = req.query;
+  const apiKey = process.env.GHL_API_KEY;
 
   console.log('🕹️ validateOffer called, contactId:', contactId);
   console.log('🕹️ Function executing region:', process.env.VERCEL_REGION);
@@ -12,10 +13,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing contactId' });
   }
 
-  const apiKey = process.env.GHL_API_KEY;
   const baseUrls = [
-    'https://api-eu1.gohighlevel.com/v1', // EU
-    'https://api.gohighlevel.com/v1'       // fallback
+    'https://api-eu1.gohighlevel.com/v1',
+    'https://api.gohighlevel.com/v1'
   ];
 
   let contact = null;
@@ -26,12 +26,10 @@ export default async function handler(req, res) {
       const response = await fetch(`${baseUrl}/contacts/${contactId}`, {
         headers: { Authorization: `Bearer ${apiKey}` }
       });
-
       if (!response.ok) {
         lastError = `HTTP ${response.status} from ${baseUrl}`;
-        continue; // try next endpoint
+        continue;
       }
-
       contact = await response.json();
       break;
     } catch (err) {
