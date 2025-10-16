@@ -1,40 +1,63 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
-export default async function handler(req, res) {
+export default async function validateOffer(req, res) {
   try {
     const { contactId } = req.query;
+
     if (!contactId) {
-      return res.status(400).json({ error: "Missing contactId" });
+      console.error("❌ Missing contactId in query");
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+      );
     }
 
-    const API_KEY = process.env.GHL_API_KEY;
-    const LOCATION_ID = process.env.GHL_LOCATION_ID;
+    console.log("🕹️ validateOffer called, contactId:", contactId);
 
-    // Fetch contact
+    const API_KEY = process.env.GHL_API_KEY; // stored in Vercel
+    const LOCATION_ID = process.env.GHL_LOCATION_ID; // stored in Vercel
+
+    // Fetch contact from the working endpoint
     const endpoint = `https://rest.gohighlevel.com/v1/contacts/${contactId}`;
     const response = await fetch(endpoint, {
-      headers: { Authorization: `Bearer ${API_KEY}` }
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
     });
-    const contact = await response.json();
 
-    if (!contact || contact.msg === "Not found") {
-      return res.status(404).json({ error: "Contact not found" });
+    if (!response.ok) {
+      console.error("❌ Fetch failed from", endpoint, "- Status:", response.status);
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+      );
     }
 
-    // Check for "sent welcome offer tracking link" tag
-    const hasTrackingTag = contact.contact?.tags?.includes("sent welcome offer tracking link");
+    const data = await response.json();
+    console.log("✅ Contact fetched:", data.id);
 
+    // Check if the contact has the "sent welcome offer tracking link" tag
+    const hasTrackingTag = data.tags?.includes("sent welcome offer tracking link");
     console.log("Has tracking tag?", hasTrackingTag);
 
-    // Return redirect URL as JSON
-    const redirectTo = hasTrackingTag
-      ? "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-valid-340971"
-      : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321";
-
-    return res.status(200).json({ contactId, redirectTo, hasTrackingTag });
-
+    if (hasTrackingTag) {
+      // Redirect to the VALID page
+      console.log("➡️ Redirecting to valid page");
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-valid-340971"
+      );
+    } else {
+      // Redirect to the INVALID page
+      console.log("➡️ Redirecting to invalid page");
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+      );
+    }
   } catch (error) {
     console.error("Error in validateOffer:", error);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).send("Server error");
   }
 }
