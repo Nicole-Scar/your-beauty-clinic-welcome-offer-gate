@@ -2,6 +2,8 @@ import fetch from "node-fetch";
 
 export default async function handler(req, res) {
   const contactId = req.query.contactId;
+  const apiKey = process.env.GHL_API_KEY; // Make sure your API Key is set in Vercel
+  const locationId = process.env.GHL_LOCATION_ID; // Optional if you use location-based fetch
 
   if (!contactId) {
     console.error("❌ Missing contactId in request");
@@ -9,49 +11,34 @@ export default async function handler(req, res) {
   }
 
   console.log("🕹️ validateOffer called, contactId:", contactId);
-
-  const API_KEY = process.env.GHL_API_KEY; // keep in Vercel Environment Variables
-  const LOCATION_ID = process.env.GHL_LOCATION_ID; // optional, if needed
-
-  // Use the endpoint that you know works
-  const endpoint = `https://rest.gohighlevel.com/v1/contacts/${contactId}`;
+  console.log("API Key (masked):", apiKey?.slice(0, 10) + "...");
 
   try {
-    const response = await fetch(endpoint, {
+    // Fetch contact from the global endpoint
+    const contactRes = await fetch(`https://rest.gohighlevel.com/v1/contacts/${contactId}`, {
       headers: {
-        Authorization: `Bearer ${API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
     });
 
-    if (!response.ok) {
-      console.error(`❌ Fetch failed from ${endpoint} - Status: ${response.status}`);
-      const text = await response.text();
-      console.error("Raw API response:", text);
-      return res.redirect(
-        302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321"
-      );
-    }
+    const contactData = await contactRes.json();
+    console.log("🔹 Raw API response:", contactData);
 
-    const data = await response.json();
-
-    console.log("✅ Contact fetched:", data);
-
-    // Check if the contact has the exact tag
-    const hasTrackingTag = data.contact.tags?.some(
-      tag => tag.toLowerCase().trim() === "sent welcome offer tracking link"
-    );
-
+    // Check for the "sent welcome offer tracking link" tag
+    const tags = contactData?.contact?.tags || [];
+    const hasTrackingTag = tags.includes("sent welcome offer tracking link");
     console.log("Has tracking tag?", hasTrackingTag);
 
-    // Redirect based on tag presence
+    // Redirect logic with explicit logging
     if (hasTrackingTag) {
+      console.log("➡️ Redirecting to VALID page");
       return res.redirect(
         302,
         "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-valid-340971"
       );
     } else {
+      console.log("➡️ Redirecting to INVALID page");
       return res.redirect(
         302,
         "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-874321"
