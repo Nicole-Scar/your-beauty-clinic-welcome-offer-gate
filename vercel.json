@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/**/*": {
+      "regions": ["lhr1"]
+    }
+  },
+  "regions": ["lhr1"]
+}
