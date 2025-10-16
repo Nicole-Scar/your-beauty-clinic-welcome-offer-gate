@@ -1,28 +1,37 @@
-// validateOffer.js
 import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
   const { contactId } = req.query;
-  const apiKey = process.env.GHL_API_KEY; // Your global API Key
-  const locationId = 'izQwdnA1xbbcTt7Z7wzU'; // Your location ID
-
-  console.log('🕹️ validateOffer called, contactId:', contactId);
-  console.log('API Key:', apiKey);
-  console.log('Location ID:', locationId);
 
   if (!contactId) {
+    console.error('❌ No contactId provided');
     return res.status(400).json({ error: 'Missing contactId' });
   }
 
-  const baseUrls = [
+  const apiKey = process.env.GHL_API_KEY;
+  if (!apiKey) {
+    console.error('❌ No API Key found in environment variables');
+    return res.status(500).json({ error: 'Missing API Key' });
+  }
+
+  // Mask API Key for logging
+  const maskedKey = apiKey.slice(0, 4) + '…' + apiKey.slice(-4);
+
+  // Possible endpoints to try
+  const endpoints = [
     `https://api.gohighlevel.com/v1/contacts/${contactId}`,
-    `https://api.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
+    `https://api.gohighlevel.com/v1/locations/izQwdnA1xbbcTt7Z7wzU/contacts/${contactId}`
   ];
 
+  console.log('🕹️ validateOffer called, contactId:', contactId);
+  console.log('API Key (masked):', maskedKey);
+
   let contact = null;
-  for (const url of baseUrls) {
+  let triedEndpoints = [];
+
+  for (const url of endpoints) {
     try {
-      console.log('Fetching contact from:', url);
+      console.log('🔹 Fetching contact from:', url);
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${apiKey}` }
       });
@@ -30,39 +39,41 @@ export default async function handler(req, res) {
       const data = await response.json();
       console.log('Raw API response:', data);
 
+      triedEndpoints.push({ url, status: response.status, data });
+
       if (response.ok) {
         contact = data;
         break;
-      } else {
-        console.warn(`❌ Fetch failed from ${url} - Status: ${response.status}`);
       }
     } catch (err) {
-      console.error(`⚠️ Could not reach ${url}`, err.message);
+      console.error(`❌ Fetch failed for ${url}:`, err.message);
+      triedEndpoints.push({ url, error: err.message });
     }
   }
 
   if (!contact) {
+    console.error('❌ Could not fetch contact from any endpoint');
     return res.status(404).json({
       error: 'Contact not found or API fetch failed',
-      contactId
+      contactId,
+      triedEndpoints
     });
   }
 
-  // Extract relevant fields
+  // Check custom fields and tags
   const fields = contact.contact?.customField || [];
-  const hasTag = (contact.contact?.tags || []).includes('welcomeOffer');
+  const tags = contact.contact?.tags || [];
+  const hasTag = tags.includes('welcomeOffer');
   const welcomeOfferAccess = fields.find(f => f.name === 'welcomeOfferAccess')?.value;
   const offerBooked = fields.find(f => f.name === 'offerBooked')?.value;
 
   const contactFound = !!contact;
   const redirectTo =
     contactFound && welcomeOfferAccess === 'Yes' && hasTag && offerBooked !== 'Yes'
-      ? 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?{{contact.id}}'
+      ? 'https://your-booking-page.com'
       : 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
 
-  console.log('✅ contactFound:', contactFound);
-  console.log('hasTag:', hasTag, 'welcomeOfferAccess:', welcomeOfferAccess, 'offerBooked:', offerBooked);
-  console.log('Redirecting to:', redirectTo);
+  console.log('✅ Final computed values:', { contactFound, hasTag, welcomeOfferAccess, offerBooked, redirectTo });
 
   return res.status(200).json({
     contactId,
@@ -70,6 +81,7 @@ export default async function handler(req, res) {
     hasTag,
     welcomeOfferAccess,
     offerBooked,
-    redirectTo
+    redirectTo,
+    triedEndpoints
   });
 }
