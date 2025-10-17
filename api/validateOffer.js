@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 export default async function validateOffer(req, res) {
   try {
-    // Support both 'ref' and 'contactId' just in case
+    // Correctly read contact ID from query
     const contactId = req.query.ref || req.query.contactId;
 
     if (!contactId) {
@@ -18,7 +18,7 @@ export default async function validateOffer(req, res) {
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
 
-    // ✅ Correct template literals
+    // ✅ Use template literals to interpolate the actual contactId
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
       `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
@@ -63,8 +63,8 @@ export default async function validateOffer(req, res) {
 
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    // ✅ Use ref= in valid page URL to hide the text "contactId="
-    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contact.id}`;
+    // ✅ Final redirect URL using template literal
+    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contactId}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     const redirectTo = hasTrackingTag ? validPage : invalidPage;

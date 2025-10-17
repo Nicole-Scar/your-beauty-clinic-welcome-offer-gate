@@ -39,9 +39,9 @@
     (function() {
       console.log("🏁 index.html loaded");
 
-      // Extract contact ID from query string using ref
+      // Extract contactId from query string
       const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("ref");
+      const contactId = params.get("ref"); // Must match validateOffer.js
 
       if (contactId) {
         console.log("🪶 ContactId detected:", contactId);
