@@ -39,16 +39,16 @@
     (function() {
       console.log("🏁 index.html loaded");
 
-      // Extract contactId from query string using 'ref'
+      // Extract contactId from query string using 'contact'
       const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("ref");
+      const contactId = params.get("contact");
 
       if (contactId) {
         console.log("🪶 ContactId detected:", contactId);
 
         // 2-second verification delay
         setTimeout(() => {
-          const apiUrl = `/api/validateOffer?ref=${encodeURIComponent(contactId)}`;
+          const apiUrl = `/api/validateOffer?contact=${encodeURIComponent(contactId)}`;
           console.log("🔄 Redirecting to API route:", apiUrl);
           window.location.replace(apiUrl);
         }, 2000);
