@@ -2,11 +2,10 @@ import fetch from 'node-fetch';
 
 export default async function validateOffer(req, res) {
   try {
-    // Use 'contact' from query
-    const contactId = req.query.contact;
+    const { contactId } = req.query;
 
     if (!contactId) {
-      console.log("❌ No contact found in URL");
+      console.log("❌ No contactId found in URL");
       return res.redirect(
         302,
         "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
@@ -24,6 +23,7 @@ export default async function validateOffer(req, res) {
     ];
 
     let contact;
+
     for (const endpoint of endpoints) {
       console.log("🔹 Trying endpoint:", endpoint);
       const response = await fetch(endpoint, {
@@ -53,7 +53,8 @@ export default async function validateOffer(req, res) {
       );
     }
 
-    console.log("🧩 Contact tags found:", contact.tags);
+    // Full tag dump for debugging
+    console.log("🧩 Contact tags raw:", JSON.stringify(contact.tags, null, 2));
 
     const hasTrackingTag = Array.isArray(contact.tags)
       ? contact.tags.includes("sent welcome offer tracking link")
@@ -61,7 +62,7 @@ export default async function validateOffer(req, res) {
 
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contact=${contactId}`;
+    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     const redirectTo = hasTrackingTag ? validPage : invalidPage;
