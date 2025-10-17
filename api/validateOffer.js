@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 export default async function validateOffer(req, res) {
   try {
-    const { contactId } = req.query;
+    const { ref: contactId } = req.query;
 
     if (!contactId) {
       console.log("❌ No contactId found in URL");
