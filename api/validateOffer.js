@@ -2,8 +2,8 @@ import fetch from 'node-fetch';
 
 export default async function validateOffer(req, res) {
   try {
-    // Support both 'ref' and 'contactId' just in case
-    const contactId = req.query.ref || req.query.contactId;
+    // Use 'ref' query parameter
+    const contactId = req.query.ref;
 
     if (!contactId) {
       console.log("❌ No contactId found in URL");
@@ -24,7 +24,6 @@ export default async function validateOffer(req, res) {
     ];
 
     let contact;
-    let usedEndpoint;
 
     for (const endpoint of endpoints) {
       console.log("🔹 Trying endpoint:", endpoint);
@@ -40,7 +39,6 @@ export default async function validateOffer(req, res) {
 
       if (response.ok && data.contact) {
         contact = data.contact;
-        usedEndpoint = endpoint;
         console.log("✅ Contact fetched:", contact.id);
         break;
       } else {
@@ -64,7 +62,7 @@ export default async function validateOffer(req, res) {
 
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    // Final redirect URLs with ref parameter (no contactId= text)
+    // Redirect URLs
     const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contactId}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
