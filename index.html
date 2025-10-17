@@ -39,9 +39,9 @@
     (function() {
       console.log("🏁 index.html loaded");
 
-      // Extract contactId from query string
+      // Extract contactId from query string using 'ref'
       const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("ref"); // Must match validateOffer.js
+      const contactId = params.get("ref");
 
       if (contactId) {
         console.log("🪶 ContactId detected:", contactId);
@@ -54,6 +54,7 @@
         }, 2000);
       } else {
         console.warn("⚠️ No contactId found in URL.");
+        // Redirect directly to invalid page if no contact ID
         window.location.replace(
           "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
         );
