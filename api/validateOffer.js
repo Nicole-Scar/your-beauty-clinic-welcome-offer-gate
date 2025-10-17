@@ -2,8 +2,8 @@ import fetch from 'node-fetch';
 
 export default async function validateOffer(req, res) {
   try {
-    // Use 'ref' query parameter
-    const contactId = req.query.ref;
+    // Support both 'ref' and 'contactId' for safety
+    const contactId = req.query.ref || req.query.contactId;
 
     if (!contactId) {
       console.log("❌ No contactId found in URL");
@@ -56,13 +56,18 @@ export default async function validateOffer(req, res) {
 
     console.log("🧩 Contact tags found:", contact.tags);
 
-    const hasTrackingTag = Array.isArray(contact.tags)
-      ? contact.tags.includes("sent welcome offer tracking link")
-      : false;
+    // Flatten tags and customField values
+    let allTags = [];
+    if (Array.isArray(contact.tags)) allTags = contact.tags;
+    if (Array.isArray(contact.customField)) {
+      allTags = allTags.concat(
+        contact.customField.map(f => f.value).filter(v => typeof v === "string")
+      );
+    }
 
+    const hasTrackingTag = allTags.includes("sent welcome offer tracking link");
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    // Redirect URLs
     const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contactId}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
