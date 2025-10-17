@@ -1,43 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Welcome Offer Redirect</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validating your offer...</title>
 </head>
 <body>
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const contactId = params.get('contactId');
+    (function() {
+      console.log("🏁 index.html loaded");
 
-    if (!contactId) {
-      console.error('❌ No contactId in URL');
-      window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
-    } else {
-      console.log('🪶 ContactId detected:', contactId);
+      // Get contactId from the URL query string
+      const params = new URLSearchParams(window.location.search);
+      const contactId = params.get("contactId");
 
-      fetch(`/api/validateOffer?contactId=${contactId}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log('API response received:', data);
+      if (contactId) {
+        console.log("🪶 ContactId detected:", contactId);
 
-          // Pause for inspection (optional)
-          setTimeout(() => {
-            if (!data.contactId || !data.redirectTo) {
-              console.warn('Redirecting to invalid page due to failed checks');
-              window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
-              return;
-            }
-
-            // Redirect according to API response
-            console.log('➡️ Redirecting to:', data.redirectTo);
-            window.location.href = data.redirectTo;
-          }, 30000); // 30 seconds
-        })
-        .catch(err => {
-          console.error('Fetch error:', err);
-          window.location.href = 'https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971';
-        });
-    }
+        // Redirect to the working API validation route
+        const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
+        console.log("🔄 Redirecting to API route:", apiUrl);
+        window.location.replace(apiUrl);
+      } else {
+        console.warn("⚠️ No contactId found in URL.");
+        window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+      }
+    })();
   </script>
 </body>
 </html>
