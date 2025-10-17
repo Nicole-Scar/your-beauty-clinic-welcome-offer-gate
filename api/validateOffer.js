@@ -24,6 +24,7 @@ export default async function validateOffer(req, res) {
 
     let contact;
 
+    // Try each endpoint until we fetch the contact
     for (const endpoint of endpoints) {
       console.log("🔹 Trying endpoint:", endpoint);
       const response = await fetch(endpoint, {
@@ -55,42 +56,37 @@ export default async function validateOffer(req, res) {
 
     console.log("🧩 Contact tags found:", contact.tags);
 
-    // Tag check
+    // Keep the existing tag check exactly as before
     const hasTrackingTag = Array.isArray(contact.tags)
       ? contact.tags.includes("sent welcome offer tracking link")
       : false;
+    console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    // Custom field checks
-    const fields = contact.customField || contact.customFields || [];
-    console.log("🧠 Custom fields found:", fields);
-
-    const getField = (name) => {
-      const field = fields.find(f =>
-        f.name?.toLowerCase() === name.toLowerCase()
-      );
-      return field?.value?.trim().toLowerCase() || "";
+    // Get custom field values
+    const customFields = contact.customField || [];
+    const getField = (fieldName) => {
+      const field = customFields.find(f => f.name === fieldName || f.label === fieldName);
+      return field ? field.value : null;
     };
 
     const welcomeOfferAccess = getField("welcomeOfferAccess");
     const offerBooked = getField("offerBooked");
 
-    console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
-    console.log("🎯 offerBooked:", offerBooked);
+    console.log("🧩 Custom fields:", { welcomeOfferAccess, offerBooked });
 
-    // Define access logic
-    const canAccess =
-      hasTrackingTag &&
-      (welcomeOfferAccess === "yes" || welcomeOfferAccess === "true") &&
-      (offerBooked === "no" || offerBooked === "false" || offerBooked === "");
+    // Logic:
+    // valid page ONLY if tag is present AND welcomeOfferAccess = "Yes" AND offerBooked != "Yes"
+    const isValid = hasTrackingTag &&
+                    welcomeOfferAccess === "Yes" &&
+                    offerBooked !== "Yes";
 
     const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
-    const redirectTo = canAccess ? validPage : invalidPage;
-
-    console.log("✅ hasTrackingTag:", hasTrackingTag);
+    const redirectTo = isValid ? validPage : invalidPage;
     console.log("➡️ Redirecting to:", redirectTo);
 
+    // Prevent caching to ensure fresh validation
     res.setHeader("Cache-Control", "no-store");
     return res.redirect(302, redirectTo);
 
