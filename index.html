@@ -39,21 +39,22 @@
     (function() {
       console.log("🏁 index.html loaded");
 
-      // Extract 'ref' from query string
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("ref"); // <-- changed to ref
+      // Extract contactId from the path
+      const pathParts = window.location.pathname.split('/');
+      const contactId = pathParts[pathParts.length - 1] || null;
 
       if (contactId) {
         console.log("🪶 ContactId detected:", contactId);
 
-        // Wait 2 seconds before calling API
+        // Wait briefly before redirecting
         setTimeout(() => {
+          // Call API to validate
           const apiUrl = `/api/validateOffer?ref=${encodeURIComponent(contactId)}`;
           console.log("🔄 Redirecting to API route:", apiUrl);
           window.location.replace(apiUrl);
         }, 2000); // 2-second verification delay
       } else {
-        console.warn("⚠️ No contactId found in URL.");
+        console.warn("⚠️ No contactId found in path.");
         window.location.replace(
           "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
         );

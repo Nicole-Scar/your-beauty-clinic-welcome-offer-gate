@@ -2,7 +2,8 @@ import fetch from 'node-fetch';
 
 export default async function validateOffer(req, res) {
   try {
-    const { ref: contactId } = req.query;
+    // Support both 'ref' and 'contactId' just in case
+    const contactId = req.query.ref || req.query.contactId;
 
     if (!contactId) {
       console.log("❌ No contactId found in URL");
@@ -63,13 +64,13 @@ export default async function validateOffer(req, res) {
 
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contactId}`;
+    // Final redirect URLs
+    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477/${contactId}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     const redirectTo = hasTrackingTag ? validPage : invalidPage;
     console.log("➡️ Redirecting to:", redirectTo);
 
-    // Force stop here to ensure redirect happens once
     res.setHeader("Cache-Control", "no-store");
     return res.redirect(302, redirectTo);
 
