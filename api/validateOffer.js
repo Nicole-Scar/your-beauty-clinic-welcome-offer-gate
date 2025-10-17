@@ -64,8 +64,8 @@ export default async function validateOffer(req, res) {
 
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    // Final redirect URLs
-    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477/${contactId}`;
+    // Final redirect URLs with ref parameter (no contactId= text)
+    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contactId}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     const redirectTo = hasTrackingTag ? validPage : invalidPage;
