@@ -23,6 +23,7 @@ export default async function validateOffer(req, res) {
     ];
 
     let contact;
+    let usedEndpoint;
 
     for (const endpoint of endpoints) {
       console.log("🔹 Trying endpoint:", endpoint);
@@ -38,6 +39,7 @@ export default async function validateOffer(req, res) {
 
       if (response.ok && data.contact) {
         contact = data.contact;
+        usedEndpoint = endpoint;
         console.log("✅ Contact fetched:", contact.id);
         break;
       } else {
@@ -53,8 +55,7 @@ export default async function validateOffer(req, res) {
       );
     }
 
-    // Full tag dump for debugging
-    console.log("🧩 Contact tags raw:", JSON.stringify(contact.tags, null, 2));
+    console.log("🧩 Contact tags found:", contact.tags);
 
     const hasTrackingTag = Array.isArray(contact.tags)
       ? contact.tags.includes("sent welcome offer tracking link")
@@ -68,6 +69,7 @@ export default async function validateOffer(req, res) {
     const redirectTo = hasTrackingTag ? validPage : invalidPage;
     console.log("➡️ Redirecting to:", redirectTo);
 
+    // Force stop here to ensure redirect happens once
     res.setHeader("Cache-Control", "no-store");
     return res.redirect(302, redirectTo);
 

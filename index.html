@@ -10,23 +10,20 @@
     (function() {
       console.log("🏁 index.html loaded");
 
+      // Get contactId from the URL query string
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
 
       if (contactId) {
         console.log("🪶 ContactId detected:", contactId);
 
-        // 2-second verification delay
-        setTimeout(() => {
-          const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
-          console.log("🔄 Redirecting to API route:", apiUrl);
-          window.location.replace(apiUrl);
-        }, 2000);
+        // Redirect to the working API validation route
+        const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
+        console.log("🔄 Redirecting to API route:", apiUrl);
+        window.location.replace(apiUrl);
       } else {
         console.warn("⚠️ No contactId found in URL.");
-        window.location.replace(
-          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-        );
+        window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
       }
     })();
   </script>
