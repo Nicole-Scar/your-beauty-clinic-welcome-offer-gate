@@ -18,13 +18,13 @@ export default async function validateOffer(req, res) {
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
 
+    // ✅ Correct template literals
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
       `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
     ];
 
     let contact;
-    let usedEndpoint;
 
     for (const endpoint of endpoints) {
       console.log("🔹 Trying endpoint:", endpoint);
@@ -40,7 +40,6 @@ export default async function validateOffer(req, res) {
 
       if (response.ok && data.contact) {
         contact = data.contact;
-        usedEndpoint = endpoint;
         console.log("✅ Contact fetched:", contact.id);
         break;
       } else {
@@ -58,22 +57,17 @@ export default async function validateOffer(req, res) {
 
     console.log("🧩 Contact tags found:", contact.tags);
 
-    // ✅ Detailed per-tag logging
-    contact.tags.forEach((tag, i) => console.log(`📌 Tag ${i + 1}:`, tag));
-
     const hasTrackingTag = Array.isArray(contact.tags)
       ? contact.tags.includes("sent welcome offer tracking link")
       : false;
 
     console.log("✅ hasTrackingTag result:", hasTrackingTag);
 
-    // Final redirect URLs
-    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contactId}`;
+    // ✅ Use ref= in valid page URL to hide the text "contactId="
+    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?ref=${contact.id}`;
     const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     const redirectTo = hasTrackingTag ? validPage : invalidPage;
-
-    // 🔹 Log final URL before redirecting
     console.log("➡️ Redirecting to:", redirectTo);
 
     res.setHeader("Cache-Control", "no-store");
