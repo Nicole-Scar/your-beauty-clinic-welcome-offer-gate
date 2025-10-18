@@ -5,7 +5,7 @@ export default async function validateOffer(req, res) {
     const { contactId } = req.query;
 
     if (!contactId) {
-      console.log("❌ No contactId found in URL");
+      console.log("❌ No contactId in URL");
       return res.redirect(
         302,
         "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
@@ -22,76 +22,76 @@ export default async function validateOffer(req, res) {
       `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
     ];
 
-    let contact;
+    let contact = null;
 
-    // Try each endpoint until we fetch the contact
     for (const endpoint of endpoints) {
-      console.log("🔹 Trying endpoint:", endpoint);
       const response = await fetch(endpoint, {
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
       });
 
       const data = await response.json();
-      console.log("🔸 Raw response keys:", Object.keys(data));
 
       if (response.ok && data.contact) {
         contact = data.contact;
-        console.log("✅ Contact fetched:", contact.id);
         break;
-      } else {
-        console.log(`❌ Failed from ${endpoint} - Status: ${response.status}`);
       }
     }
 
     if (!contact) {
-      console.error("❌ No contact found after all endpoints");
+      console.error("❌ No contact found after both endpoints");
       return res.redirect(
         302,
         "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
       );
     }
 
-    console.log("🧩 Contact tags found:", contact.tags);
+    // === Tag check (keep exactly as before) ===
+    const hasTag =
+      Array.isArray(contact.tags) &&
+      contact.tags.some(tag =>
+        tag.toLowerCase().trim() === "sent welcome offer tracking link"
+      );
 
-    // Keep the existing tag check exactly as before
-    const hasTrackingTag = Array.isArray(contact.tags)
-      ? contact.tags.includes("sent welcome offer tracking link")
-      : false;
-    console.log("✅ hasTrackingTag result:", hasTrackingTag);
+    console.log("🏷️ Contact tags:", contact.tags);
+    console.log("✅ hasTag:", hasTag);
 
-    // Get custom field values
-    const customFields = contact.customField || [];
-    const getField = (fieldName) => {
-      const field = customFields.find(f => f.name === fieldName || f.label === fieldName);
-      return field ? field.value : null;
-    };
+    // === Custom field checks ===
+    let welcomeOfferAccess = false;
+    let offerBooked = false;
 
-    const welcomeOfferAccess = getField("welcomeOfferAccess");
-    const offerBooked = getField("offerBooked");
+    if (Array.isArray(contact.customField)) {
+      for (const field of contact.customField) {
+        if (field.value && field.value.toLowerCase() === "yes") {
+          if (field.id === "welcomeOfferAccessFieldId") welcomeOfferAccess = true;
+          if (field.id === "offerBookedFieldId") offerBooked = true;
+        }
+      }
+    }
 
-    console.log("🧩 Custom fields:", { welcomeOfferAccess, offerBooked });
+    console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
+    console.log("🎯 offerBooked:", offerBooked);
 
-    // Logic:
-    // valid page ONLY if tag is present AND welcomeOfferAccess = "Yes" AND offerBooked != "Yes"
-    const isValid = hasTrackingTag &&
-                    welcomeOfferAccess === "Yes" &&
-                    offerBooked !== "Yes";
+    // === Final decision logic ===
+    // Only redirect to valid page if tag exists, welcomeOfferAccess = yes, and offerBooked = no
+    const redirectTo = hasTag && welcomeOfferAccess && !offerBooked
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`
+      : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
-    const validPage = `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`;
-    const invalidPage = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
-
-    const redirectTo = isValid ? validPage : invalidPage;
     console.log("➡️ Redirecting to:", redirectTo);
 
-    // Prevent caching to ensure fresh validation
-    res.setHeader("Cache-Control", "no-store");
-    return res.redirect(302, redirectTo);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.redirect(302, redirectTo);
 
   } catch (error) {
     console.error("🔥 Error in validateOffer:", error);
-    return res.status(500).send("Server error");
+    return res.redirect(
+      302,
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    );
   }
 }
