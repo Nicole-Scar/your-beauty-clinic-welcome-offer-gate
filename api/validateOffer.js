@@ -26,8 +26,6 @@ export default async function validateOffer(req, res) {
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
-    const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
-    const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
 
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
@@ -77,67 +75,38 @@ export default async function validateOffer(req, res) {
       return s === "yes" || s === "true" || s === "1";
     };
 
-    const valueIsNo = (v) => {
-      const s = normLower(v);
-      return s === "no" || s === "false" || s === "0" || s === "";
-    };
-
-    // === NEW SAFE FIELD MATCHING ===
     let welcomeOfferAccess = null;
     let offerBooked = null;
 
-    // 1) Match by ENV ID first
-    if (fieldWelcomeId || fieldOfferBookedId) {
-      for (const f of cf) {
-        if (!f || !f.id) continue;
-        if (fieldWelcomeId && f.id === fieldWelcomeId) {
-          welcomeOfferAccess = valueIsYes(f.value);
-        }
-        if (fieldOfferBookedId && f.id === fieldOfferBookedId) {
-          offerBooked = valueIsYes(f.value);
-        }
+    // === NAME-BASED MATCHING ONLY ===
+    for (const f of cf) {
+      if (!f) continue;
+      const name = normLower(f.name || f.label || "");
+
+      // welcomeOfferBooked
+      if (
+        welcomeOfferAccess === null &&
+        (name.includes("welcomeoffer") ||
+         name.includes("welcome_offer") ||
+         name.includes("welcome offer") ||
+         (name.includes("welcome") && name.includes("access")))
+      ) {
+        welcomeOfferAccess = valueIsYes(f.value);
+        console.log(`🔎 Inferred welcomeOfferAccess from name match (${name})`, welcomeOfferAccess);
       }
-      console.log("🔎 Mapped by env IDs:", {
-        fieldWelcomeId,
-        fieldOfferBookedId,
-        welcomeOfferAccess,
-        offerBooked
-      });
-    }
 
-    // 2) **Name-based matching (SOLID + SAFE)**  
-    if (welcomeOfferAccess === null || offerBooked === null) {
-      for (const f of cf) {
-        if (!f) continue;
-        const name = normLower(f.name || f.label || "");
-
-        // welcomeOfferBooked
-        if (
-          welcomeOfferAccess === null &&
-          (name.includes("welcomeoffer") ||
-           name.includes("welcome_offer") ||
-           name.includes("welcome offer") ||
-           name.includes("welcome") && name.includes("access"))
-        ) {
-          welcomeOfferAccess = valueIsYes(f.value);
-          console.log(`🔎 Inferred welcomeOfferAccess from name match (${name})`, welcomeOfferAccess);
-        }
-
-        // offerBooked
-        if (
-          offerBooked === null &&
-          (name.includes("offerbooked") ||
-           name.includes("offer booked") ||
-           (name.includes("offer") && name.includes("booked")) ||
-           (name.includes("booked") && !name.includes("invoice")))
-        ) {
-          offerBooked = valueIsYes(f.value);
-          console.log(`🔎 Inferred offerBooked from name match (${name})`, offerBooked);
-        }
+      // offerBooked
+      if (
+        offerBooked === null &&
+        (name.includes("offerbooked") ||
+         name.includes("offer booked") ||
+         (name.includes("offer") && name.includes("booked")) ||
+         (name.includes("booked") && !name.includes("invoice")))
+      ) {
+        offerBooked = valueIsYes(f.value);
+        console.log(`🔎 Inferred offerBooked from name match (${name})`, offerBooked);
       }
     }
-
-    // ——— REMOVE FALLBACK BOOLEAN GUESSING ENTIRELY ———
 
     // === FINAL NORMALIZATION ===
     if (welcomeOfferAccess === null) {
