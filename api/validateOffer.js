@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import fetch from 'node-fetch'; 
 
 // helper functions
 function norm(v) {
@@ -9,6 +9,12 @@ function normLower(v) {
 }
 
 export default async function validateOffer(req, res) {
+
+  // === NO-CACHE HEADERS: top of function ===
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
   try {
     const { contactId } = req.query;
 
@@ -131,8 +137,7 @@ export default async function validateOffer(req, res) {
       }
     }
 
-    // ——— REMOVE FALLBACK BOOLEAN GUESSING ENTIRELY (that’s what caused your bug) ———
-    // No more scanning for "0" or generic Yes/No fields.
+    // ——— REMOVE FALLBACK BOOLEAN GUESSING ENTIRELY ———
 
     // === FINAL NORMALIZATION ===
     if (welcomeOfferAccess === null) {
@@ -160,9 +165,6 @@ export default async function validateOffer(req, res) {
 
     console.log("➡️ Redirecting to:", redirectTo);
 
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
     return res.redirect(302, redirectTo);
 
   } catch (err) {
