@@ -38,8 +38,7 @@
 
   <script>
   (function() {
-    const rawQuery = window.location.search;
-    const params = new URLSearchParams(rawQuery);
+    const params = new URLSearchParams(window.location.search);
     const contactId = params.get("contactId");
 
     if (!contactId) {
@@ -47,17 +46,22 @@
     }
 
     console.log("🪶 ContactId detected:", contactId);
-    console.log("🔄 Preserving full query string:", rawQuery);
 
-    // API URL preserves the raw query exactly
-    const apiUrl = `/api/validateOffer${rawQuery}`;
+    // Only preserve UTMs
+    const utmParams = Array.from(params.entries())
+      .filter(([key]) => key.startsWith("utm_"))
+      .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join("&");
+
+    const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${utmParams ? "&"+utmParams : ""}`;
+    console.log("🔄 Redirecting to API route with UTMs only:", apiUrl);
 
     // Spinner visible for 2s then redirect
     setTimeout(() => {
       window.location.replace(apiUrl);
     }, 2000);
 
-    // Optional strict expiry enforcement on calendar buttons
+    // Optional: strict expiry enforcement on booking buttons
     document.querySelectorAll(".book-now-button").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         try {
