@@ -9,12 +9,14 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    const { contactId } = req.query;
+    let { contactId } = req.query;
+    if (Array.isArray(contactId)) contactId = contactId[0]; // ensure string
 
     if (!contactId) {
       console.log("❌ No contactId in URL");
       return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
+
     console.log("🕹️ validateOffer called, contactId:", contactId);
 
     const apiKey = process.env.GHL_API_KEY;
@@ -33,7 +35,6 @@ export default async function validateOffer(req, res) {
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
       });
-
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
@@ -51,7 +52,7 @@ export default async function validateOffer(req, res) {
     }
 
     const hasTag = Array.isArray(contact.tags) &&
-      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
+      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in"); // updated tag
     console.log("🏷️ Contact tags:", contact.tags);
     console.log("✅ hasTag:", hasTag);
 
@@ -69,38 +70,33 @@ export default async function validateOffer(req, res) {
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
-    let offerExpiry = null;
 
-    // Map custom fields by ID
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
         if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
         if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
-        if (f.name === "Welcome Offer Expiry" && f.value) offerExpiry = new Date(f.value);
       }
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    // Infer fields by name if not found by ID
-    for (const f of cf) {
-      if (!f) continue;
-      const name = normLower(f.name || f.label || "");
-      const val = f.value;
-      if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
-        welcomeOfferAccess = valueIsYes(val);
-        console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
-      }
-      if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
-        offerBooked = valueIsYes(val);
-        console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
-      }
-      if (!offerExpiry && name.includes("expiry") && val) {
-        offerExpiry = new Date(val);
+    if (welcomeOfferAccess === null || offerBooked === null) {
+      for (const f of cf) {
+        if (!f) continue;
+        const name = normLower(f.name || f.label || "");
+        const val = f.value;
+        if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
+          welcomeOfferAccess = valueIsYes(val);
+          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+        }
+        if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
+          offerBooked = valueIsYes(val);
+          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
+        }
       }
     }
 
-    // Fallback boolean fields
+    // === Fallback boolean mapping ===
     const booleanFields = cf
       .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
       .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
@@ -124,23 +120,29 @@ export default async function validateOffer(req, res) {
       offerBooked = false;
     }
 
-    // Expiry check
-    const now = new Date();
-    const isExpired = offerExpiry && now > offerExpiry;
+    // === NEW: Expiry check ===
+    const expiryField = cf.find(f => (f.name || f.label || "").toLowerCase().includes("welcome offer expiry"));
+    let offerExpired = false;
+    if (expiryField && expiryField.value) {
+      const expiryDate = new Date(expiryField.value);
+      offerExpired = expiryDate < new Date();
+      console.log("⏰ Offer expiry check:", expiryDate, "| expired?", offerExpired);
+    }
 
-    // Final validation
-    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
-    console.log("🎯 final validation -> isValid:", isValid);
+    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| expired:", offerExpired);
 
-    // Preserve UTMs but remove original contactId
+    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !offerExpired;
+    console.log("➡️ isValid:", isValid);
+
+    // Preserve UTMs but remove duplicate contactId
     const search = req.url.split("?")[1] || "";
     const params = new URLSearchParams(search);
     params.delete("contactId");
-    const queryString = params.toString();
+    const queryString = params.toString(); 
     const separator = queryString ? "&" : "";
 
     const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${encodeURIComponent(contact.id)}${separator}${queryString}`
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}${separator}${queryString}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     console.log("➡️ Redirecting to:", redirectTo);
