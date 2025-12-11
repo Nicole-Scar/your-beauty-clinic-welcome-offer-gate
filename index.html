@@ -42,8 +42,7 @@
       const contactId = params.get("contactId");
 
       if (!contactId) {
-        window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
-        return;
+        return window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
       }
 
       // Keep only UTM parameters
@@ -56,12 +55,12 @@
 
       console.log("🔄 Redirecting to API route:", apiUrl);
 
-      // Keep spinner visible for 2 seconds
+      // Spinner delay
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
 
-      // Optional: strict expiry enforcement on calendar booking buttons
+      // Optional: strict expiry enforcement on booking buttons
       document.querySelectorAll(".book-now-button").forEach(btn => {
         btn.addEventListener("click", async (e) => {
           const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
@@ -71,7 +70,6 @@
           }
         });
       });
-
     })();
   </script>
 </body>
