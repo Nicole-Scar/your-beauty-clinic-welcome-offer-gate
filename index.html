@@ -39,7 +39,9 @@
   <script>
     (function() {
       const params = new URLSearchParams(window.location.search);
-      let contactId = params.get("contactId");
+      const contactId = params.get("contactId");
+
+      console.log("🪶 ContactId detected:", contactId);
 
       if (!contactId) {
         console.warn("⚠️ No contactId found in URL.");
@@ -47,23 +49,21 @@
         return;
       }
 
-      console.log("🪶 ContactId detected:", contactId);
+      // Keep only UTM params
+      const utmParams = Array.from(params.entries())
+        .filter(([key]) => key.startsWith("utm_"))
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&");
 
-      // Remove contactId from params to prevent duplication
-      params.delete("contactId");
-
-      const queryString = params.toString();
-      const separator = queryString ? "&" : "";
-
-      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${separator}${queryString}`;
+      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${utmParams ? "&"+utmParams : ""}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
-      // Spinner delay before redirect
+      // Spinner delay
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
 
-      // Optional: strict expiry check on calendar buttons
+      // Optional: strict expiry enforcement on booking buttons
       document.querySelectorAll(".book-now-button").forEach(btn => {
         btn.addEventListener("click", async (e) => {
           const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
