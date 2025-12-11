@@ -27,9 +27,7 @@
       animation: spin 1s linear infinite;
       margin-bottom: 10px;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -37,45 +35,29 @@
   <p>Verifying your offer...</p>
 
   <script>
-  (function() {
-    const params = new URLSearchParams(window.location.search);
-    const contactId = params.get("contactId");
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const contactId = params.get("contactId");
 
-    if (!contactId) {
-      console.warn("⚠️ No contactId found in URL.");
-      return window.location.replace(
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-      );
-    }
+      if (!contactId) {
+        return window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+      }
 
-    console.log("🪶 ContactId detected:", contactId);
+      // Preserve UTM parameters
+      const utmParams = Array.from(params.entries())
+        .filter(([key]) => key.startsWith("utm_"))
+        .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&");
 
-    // Keep only UTM parameters
-    const utmParams = Array.from(params.entries())
-      .filter(([key]) => key.startsWith("utm_"))
-      .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join("&");
+      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${utmParams ? "&"+utmParams : ""}`;
 
-    const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${utmParams ? "&"+utmParams : ""}`;
-    console.log("🔄 Redirecting to API route:", apiUrl);
+      console.log("🔄 Redirecting to API route:", apiUrl);
 
-    // Spinner delay
-    setTimeout(() => {
-      window.location.replace(apiUrl);
-    }, 2000);
-
-    // Optional: strict expiry enforcement on booking buttons
-    document.querySelectorAll(".book-now-button").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
-        if (res.url.includes("invalid")) {
-          e.preventDefault();
-          window.location.replace(res.url);
-        }
-      });
-    });
-
-  })();
+      // Spinner delay for 2 seconds
+      setTimeout(() => {
+        window.location.replace(apiUrl);
+      }, 2000);
+    })();
   </script>
 </body>
 </html>

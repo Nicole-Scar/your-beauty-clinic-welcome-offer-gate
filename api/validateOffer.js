@@ -10,20 +10,18 @@ function normLower(v) {
 export default async function validateOffer(req, res) {
   try {
     const { contactId } = req.query;
-    if (!contactId || Array.isArray(contactId)) {
-      console.error("❌ Invalid contactId");
-      return res.redirect(302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-      );
-    }
 
+    if (!contactId) {
+      console.log("❌ No contactId in URL");
+      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    }
     console.log("🕹️ validateOffer called, contactId:", contactId);
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
     const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
     const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
-    const fieldExpiryId = process.env.GHL_FIELD_EXPIRY_ID || null;
+    const fieldExpiryId = process.env.GHL_FIELD_WELCOME_EXPIRY_ID || null; // expiry field
 
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
@@ -36,6 +34,7 @@ export default async function validateOffer(req, res) {
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
       });
+
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
@@ -49,9 +48,7 @@ export default async function validateOffer(req, res) {
 
     if (!contact) {
       console.error("❌ No contact found after both endpoints");
-      return res.redirect(302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-      );
+      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
 
     const hasTag = Array.isArray(contact.tags) &&
@@ -62,41 +59,55 @@ export default async function validateOffer(req, res) {
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
-    const valueIsYes = (v) => ["yes","true","1"].includes(normLower(v));
-    const valueIsNo = (v) => ["no","false","0",""].includes(normLower(v));
+    const valueIsYes = (v) => {
+      const s = normLower(v);
+      return s === "yes" || s === "true" || s === "1";
+    };
+    const valueIsNo = (v) => {
+      const s = normLower(v);
+      return s === "no" || s === "false" || s === "0" || s === "";
+    };
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
     let expiryDate = null;
 
-    // Map fields by env IDs
-    for (const f of cf) {
-      if (!f || !f.id) continue;
-      if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
-      if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
-      if (fieldExpiryId && f.id === fieldExpiryId) expiryDate = new Date(f.value);
-    }
-    console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked, expiryDate });
-
-    // Fallback: infer fields by name
-    for (const f of cf) {
-      if (!f) continue;
-      const name = normLower(f.name || f.label || "");
-      const val = f.value;
-      if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
-        welcomeOfferAccess = valueIsYes(val);
-        console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+    // Map by env IDs
+    if (fieldWelcomeId || fieldOfferBookedId || fieldExpiryId) {
+      for (const f of cf) {
+        if (!f || !f.id) continue;
+        if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
+        if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
+        if (fieldExpiryId && f.id === fieldExpiryId) expiryDate = f.value ? new Date(f.value) : null;
       }
-      if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
-        offerBooked = valueIsYes(val);
-        console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
-      }
+      console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, fieldExpiryId, welcomeOfferAccess, offerBooked, expiryDate });
     }
 
-    // Fallback for boolean-like fields
+    // Infer from field names if null
+    if (welcomeOfferAccess === null || offerBooked === null || !expiryDate) {
+      for (const f of cf) {
+        if (!f) continue;
+        const name = normLower(f.name || f.label || "");
+        const val = f.value;
+        if (welcomeOfferAccess === null && (name.includes("welcome") || name.includes("offeraccess"))) {
+          welcomeOfferAccess = valueIsYes(val);
+          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+        }
+        if (offerBooked === null && (name.includes("book") || name.includes("booked"))) {
+          offerBooked = valueIsYes(val);
+          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
+        }
+        if (!expiryDate && name.includes("expiry")) {
+          expiryDate = val ? new Date(val) : null;
+          console.log(`🔎 Inferred expiryDate from field (${name}) =>`, expiryDate);
+        }
+      }
+    }
+
+    // Fallback boolean mapping
     const booleanFields = cf
-      .map(f => ({ id: f.id||"", name: normLower(f.name||f.label||""), raw: f, val: normLower(f.value) }))
-      .filter(x => typeof x.raw.value === "string" && ["yes","no","true","false","1","0",""].includes(x.val));
+      .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
+      .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
 
     if (booleanFields.length === 1) {
       if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
@@ -109,25 +120,29 @@ export default async function validateOffer(req, res) {
     }
 
     if (welcomeOfferAccess === null) {
-      welcomeOfferAccess = false;
       console.log("⚠️ Could not determine welcomeOfferAccess — default false");
+      welcomeOfferAccess = false;
     }
     if (offerBooked === null) {
-      offerBooked = false;
       console.log("⚠️ Could not determine offerBooked — default false");
+      offerBooked = false;
     }
 
-    // Check expiry
-    const now = new Date();
-    const isExpired = expiryDate && expiryDate < now;
+    console.log("🎯 final values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| expiryDate:", expiryDate);
 
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !isExpired;
+    const now = new Date();
+    const expired = expiryDate && now > expiryDate;
+
+    const isValid = hasTag && welcomeOfferAccess === true && offerBooked === false && !expired;
     console.log("➡️ isValid:", isValid);
 
-    // Preserve UTMs in final redirect
-    const search = req.url.split("?")[1] || "";
-    const paramsFinal = new URLSearchParams(search);
-    paramsFinal.delete("contactId"); // avoid duplicates
+    // Preserve only UTM parameters
+    const paramsFinal = new URLSearchParams();
+    for (const key in req.query) {
+      if (key.startsWith("utm_")) {
+        paramsFinal.append(key, req.query[key]);
+      }
+    }
     const queryString = paramsFinal.toString();
     const separator = queryString ? "&" : "";
 
