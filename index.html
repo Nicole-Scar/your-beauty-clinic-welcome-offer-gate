@@ -38,31 +38,36 @@
 
   <script>
     (function() {
-      if (sessionStorage.getItem("validated")) {
-        console.log("✅ Already validated — stopping re-run.");
-        return;
-      }
-
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
 
+      console.log("🪶 ContactId detected:", contactId);
+
       if (!contactId) {
         console.warn("⚠️ No contactId found in URL.");
-        window.location.replace(
-          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-        );
+        window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
         return;
       }
 
-      console.log("🪶 ContactId detected:", contactId);
-
-      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
+      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}&${params.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
+      // Keep the spinner visible for 2 seconds before redirecting
       setTimeout(() => {
-        sessionStorage.setItem("validated", "true");
         window.location.replace(apiUrl);
       }, 2000);
+
+      // Optional: strict expiry enforcement on calendar booking buttons
+      document.querySelectorAll(".book-now-button").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
+          if (res.url.includes("invalid")) {
+            e.preventDefault();
+            window.location.replace(res.url);
+          }
+        });
+      });
+
     })();
   </script>
 </body>

@@ -51,7 +51,7 @@ export default async function validateOffer(req, res) {
     }
 
     const hasTag = Array.isArray(contact.tags) &&
-      contact.tags.some(tag => normLower(tag) === "sent welcome offer tracking link");
+      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
     console.log("🏷️ Contact tags:", contact.tags);
     console.log("✅ hasTag:", hasTag);
 
@@ -62,7 +62,6 @@ export default async function validateOffer(req, res) {
       const s = normLower(v);
       return s === "yes" || s === "true" || s === "1";
     };
-
     const valueIsNo = (v) => {
       const s = normLower(v);
       return s === "no" || s === "false" || s === "0" || s === "";
@@ -70,49 +69,50 @@ export default async function validateOffer(req, res) {
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
+    let offerExpiry = null;
 
+    // Map custom fields by ID
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
         if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
         if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
+        if (f.name === "Welcome Offer Expiry" && f.value) offerExpiry = new Date(f.value);
       }
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    if (welcomeOfferAccess === null || offerBooked === null) {
-      for (const f of cf) {
-        if (!f) continue;
-        const name = normLower(f.name || f.label || "");
-        const val = f.value;
-        if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
-          welcomeOfferAccess = valueIsYes(val);
-          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
-        }
-        if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
-          offerBooked = valueIsYes(val);
-          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
-        }
+    // Infer fields by name if not found by ID
+    for (const f of cf) {
+      if (!f) continue;
+      const name = normLower(f.name || f.label || "");
+      const val = f.value;
+      if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
+        welcomeOfferAccess = valueIsYes(val);
+        console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+      }
+      if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
+        offerBooked = valueIsYes(val);
+        console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
+      }
+      if (!offerExpiry && name.includes("expiry") && val) {
+        offerExpiry = new Date(val);
       }
     }
 
-    // === Fallback boolean mapping restored, but ignore numeric fields ===
-    if (welcomeOfferAccess === null || offerBooked === null) {
-      const booleanFields = cf
-        .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
-        .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
+    // Fallback boolean fields
+    const booleanFields = cf
+      .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
+      .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
 
-      console.log("🔎 boolean-like custom fields:", booleanFields.map(b => ({ id: b.id, name: b.name, val: b.val })));
-
-      if (booleanFields.length === 1) {
-        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
-        if (offerBooked === null) offerBooked = false;
-        console.log("🔎 Fallback: single boolean field mapped to welcomeOfferAccess");
-      } else if (booleanFields.length >= 2) {
-        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
-        if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].raw.value);
-        console.log("🔎 Fallback: first boolean -> welcomeOfferAccess, second -> offerBooked");
-      }
+    if (booleanFields.length === 1) {
+      if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
+      if (offerBooked === null) offerBooked = false;
+      console.log("🔎 Fallback: single boolean field mapped to welcomeOfferAccess");
+    } else if (booleanFields.length >= 2) {
+      if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
+      if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].raw.value);
+      console.log("🔎 Fallback: first boolean -> welcomeOfferAccess, second -> offerBooked");
     }
 
     if (welcomeOfferAccess === null) {
@@ -124,13 +124,23 @@ export default async function validateOffer(req, res) {
       offerBooked = false;
     }
 
-    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
+    // Expiry check
+    const now = new Date();
+    const isExpired = offerExpiry && now > offerExpiry;
 
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
-    console.log("➡️ isValid:", isValid);
+    // Final validation
+    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
+    console.log("🎯 final validation -> isValid:", isValid);
+
+    // Preserve UTMs but remove original contactId
+    const search = req.url.split("?")[1] || "";
+    const params = new URLSearchParams(search);
+    params.delete("contactId");
+    const queryString = params.toString();
+    const separator = queryString ? "&" : "";
 
     const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}`
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${encodeURIComponent(contact.id)}${separator}${queryString}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     console.log("➡️ Redirecting to:", redirectTo);
