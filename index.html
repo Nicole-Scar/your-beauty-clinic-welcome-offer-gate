@@ -8,9 +8,28 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <style>
-    body{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;background:#faf7f5;font-family:system-ui, sans-serif;color:#333}
-    .spinner{width:40px;height:40px;border:4px solid #ddd;border-top:4px solid #c49a6c;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:10px}
-    @keyframes spin{to{transform:rotate(360deg)}}
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #faf7f5;
+      font-family: system-ui, sans-serif;
+      color: #333;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #ddd;
+      border-top: 4px solid #c49a6c;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -21,20 +40,39 @@
   (function(){
     const params = new URLSearchParams(window.location.search);
     const contactId = params.get("contactId");
+
     if (!contactId) {
       return window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
 
-    // Build utm querystring from current URL (keeps all utm_* keys)
-    const utmPairs = [];
-    for (const [k,v] of params.entries()) {
-      if (k.startsWith("utm_")) utmPairs.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
-    }
-    const utmString = utmPairs.join("&");
-    const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${utmString ? "&"+utmString : ""}`;
+    console.log("🪶 ContactId detected:", contactId);
 
-    console.log("🔄 Redirecting to API route:", apiUrl);
-    setTimeout(()=> window.location.replace(apiUrl), 2000);
+    // IMPORTANT: use the raw original querystring to preserve ALL UTMs exactly as received
+    const rawQuery = window.location.search || "";
+    const apiUrl = `/api/validateOffer${rawQuery}`;
+
+    console.log("🔄 Redirecting to API route (preserving raw query):", apiUrl);
+
+    // spinner visible for 2s then redirect
+    setTimeout(() => {
+      window.location.replace(apiUrl);
+    }, 2000);
+
+    // Optional strict check on booking buttons (keeps behavior but not required)
+    document.querySelectorAll(".book-now-button").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        try {
+          const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
+          if (res.url && res.url.includes("invalid")) {
+            e.preventDefault();
+            window.location.replace(res.url);
+          }
+        } catch (err) {
+          console.error("HEAD check failed", err);
+        }
+      });
+    });
+
   })();
   </script>
 </body>
