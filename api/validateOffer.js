@@ -14,7 +14,7 @@ export default async function validateOffer(req, res) {
     const locationId = process.env.GHL_LOCATION_ID;
     const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
     const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
-    const fieldExpiryId = process.env.GHL_FIELD_WELCOME_EXPIRY_ID || null; // new expiry field
+    const fieldExpiryId = process.env.GHL_FIELD_WELCOME_EXPIRY_ID || null; // expiry field
 
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
@@ -40,7 +40,6 @@ export default async function validateOffer(req, res) {
 
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
     const valueIsYes = v => ["yes","true","1"].includes(normLower(v));
-    const valueIsNo = v => ["no","false","0",""].includes(normLower(v));
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
@@ -53,11 +52,11 @@ export default async function validateOffer(req, res) {
       if (fieldExpiryId && f.id === fieldExpiryId) expiryDate = f.value;
     }
 
-    // fallback mapping if needed
+    // fallback mapping
     if (welcomeOfferAccess === null) welcomeOfferAccess = false;
     if (offerBooked === null) offerBooked = false;
 
-    // check expiry
+    // expiry check
     let isExpired = false;
     if (expiryDate) {
       const now = new Date();
@@ -67,16 +66,14 @@ export default async function validateOffer(req, res) {
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // Preserve UTMs only
-    const incomingParams = new URLSearchParams(req.url.split("?")[1] || "");
+    // Preserve UTMs from req.query
     const utmParams = new URLSearchParams();
-    for (const [key, value] of incomingParams.entries()) {
+    for (const [key, value] of Object.entries(req.query)) {
       if (key.startsWith("utm_")) utmParams.set(key, value);
     }
 
-    const queryString = utmParams.toString();
     const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}${queryString ? "&"+queryString : ""}`
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}${utmParams.toString() ? "&"+utmParams.toString() : ""}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
