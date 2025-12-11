@@ -52,7 +52,7 @@ export default async function validateOffer(req, res) {
     }
 
     const hasTag = Array.isArray(contact.tags) &&
-      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in"); // updated tag
+      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in"); // your tag
     console.log("🏷️ Contact tags:", contact.tags);
     console.log("✅ hasTag:", hasTag);
 
@@ -120,7 +120,7 @@ export default async function validateOffer(req, res) {
       offerBooked = false;
     }
 
-    // === NEW: Expiry check ===
+    // === Expiry check ===
     const expiryField = cf.find(f => (f.name || f.label || "").toLowerCase().includes("welcome offer expiry"));
     let offerExpired = false;
     if (expiryField && expiryField.value) {
@@ -134,15 +134,16 @@ export default async function validateOffer(req, res) {
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !offerExpired;
     console.log("➡️ isValid:", isValid);
 
-    // Preserve UTMs but remove duplicate contactId
-    const search = req.url.split("?")[1] || "";
-    const params = new URLSearchParams(search);
-    params.delete("contactId");
-    const queryString = params.toString(); 
-    const separator = queryString ? "&" : "";
+    // Preserve only UTM parameters + contactId
+    const params = new URLSearchParams(req.url.split("?")[1] || "");
+    const utmParams = new URLSearchParams();
+    for (const [key, value] of params.entries()) {
+      if (key.startsWith("utm_")) utmParams.set(key, value);
+    }
+    const queryString = utmParams.toString();
 
     const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}${separator}${queryString}`
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?contactId=${contact.id}${queryString ? "&" + queryString : ""}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     console.log("➡️ Redirecting to:", redirectTo);
