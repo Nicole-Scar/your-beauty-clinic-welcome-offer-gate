@@ -49,13 +49,7 @@
         return;
       }
 
-      // Keep only UTM params
-      const utmParams = Array.from(params.entries())
-        .filter(([key]) => key.startsWith("utm_"))
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-        .join("&");
-
-      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}${utmParams ? "&"+utmParams : ""}`;
+      const apiUrl = `/api/validateOffer?${window.location.search}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
       // Spinner delay
@@ -73,7 +67,6 @@
           }
         });
       });
-
     })();
   </script>
 </body>
