@@ -37,8 +37,9 @@
   <p>Verifying your offer...</p>
 
   <script>
-  (function(){
-    const params = new URLSearchParams(window.location.search);
+  (function() {
+    const rawQuery = window.location.search;
+    const params = new URLSearchParams(rawQuery);
     const contactId = params.get("contactId");
 
     if (!contactId) {
@@ -46,28 +47,17 @@
     }
 
     console.log("🪶 ContactId detected:", contactId);
+    console.log("🔄 Preserving full query string:", rawQuery);
 
-    // Build new query: contactId (once) + ALL utm_* params (preserve multiples)
-    const out = new URLSearchParams();
-    out.set("contactId", contactId);
+    // API URL preserves the raw query exactly
+    const apiUrl = `/api/validateOffer${rawQuery}`;
 
-    for (const [k, v] of params.entries()) {
-      if (k.startsWith("utm_")) {
-        // If the incoming param appears multiple times, URLSearchParams will handle appends
-        out.append(k, v);
-      }
-    }
-
-    const apiUrl = `/api/validateOffer?${out.toString()}`;
-
-    console.log("🔄 Redirecting to API route (contactId + UTMs):", apiUrl);
-
-    // spinner visible for 2s then redirect
+    // Spinner visible for 2s then redirect
     setTimeout(() => {
       window.location.replace(apiUrl);
     }, 2000);
 
-    // Optional strict check on booking buttons (will re-check API before booking)
+    // Optional strict expiry enforcement on calendar buttons
     document.querySelectorAll(".book-now-button").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         try {
@@ -78,11 +68,9 @@
           }
         } catch (err) {
           console.error("HEAD check failed", err);
-          // fall back to allowing the click if you prefer; currently we let it proceed
         }
       });
     });
-
   })();
   </script>
 </body>
