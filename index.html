@@ -47,18 +47,27 @@
 
     console.log("🪶 ContactId detected:", contactId);
 
-    // IMPORTANT: use the raw original querystring to preserve ALL UTMs exactly as received
-    const rawQuery = window.location.search || "";
-    const apiUrl = `/api/validateOffer${rawQuery}`;
+    // Build new query: contactId (once) + ALL utm_* params (preserve multiples)
+    const out = new URLSearchParams();
+    out.set("contactId", contactId);
 
-    console.log("🔄 Redirecting to API route (preserving raw query):", apiUrl);
+    for (const [k, v] of params.entries()) {
+      if (k.startsWith("utm_")) {
+        // If the incoming param appears multiple times, URLSearchParams will handle appends
+        out.append(k, v);
+      }
+    }
+
+    const apiUrl = `/api/validateOffer?${out.toString()}`;
+
+    console.log("🔄 Redirecting to API route (contactId + UTMs):", apiUrl);
 
     // spinner visible for 2s then redirect
     setTimeout(() => {
       window.location.replace(apiUrl);
     }, 2000);
 
-    // Optional strict check on booking buttons (keeps behavior but not required)
+    // Optional strict check on booking buttons (will re-check API before booking)
     document.querySelectorAll(".book-now-button").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         try {
@@ -69,6 +78,7 @@
           }
         } catch (err) {
           console.error("HEAD check failed", err);
+          // fall back to allowing the click if you prefer; currently we let it proceed
         }
       });
     });
