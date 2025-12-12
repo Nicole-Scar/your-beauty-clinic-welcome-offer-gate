@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -39,6 +39,19 @@
     (function() {
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
+      let utmSource = params.get("utm_source");
+
+      // --- UTM fallback from trigger_link parameter ---
+      if (!utmSource) {
+        const triggerLink = params.get("trigger_link");
+        if (triggerLink) {
+          if (triggerLink.toLowerCase().includes("email")) utmSource = "email";
+          else if (triggerLink.toLowerCase().includes("sms")) utmSource = "sms";
+        }
+      }
+
+      console.log("🪶 ContactId detected:", contactId);
+      console.log("💡 Detected utm_source:", utmSource);
 
       if (!contactId) {
         return window.location.replace(
@@ -46,25 +59,12 @@
         );
       }
 
-      // Determine UTM source
-      let utmSource = params.get("utm_source");
+      // Only preserve contactId + utm_source
+      const apiParams = new URLSearchParams();
+      apiParams.set("contactId", contactId);
+      if (utmSource) apiParams.set("utm_source", utmSource);
 
-      // Fallback: detect from trigger_link
-      const triggerLink = params.get("trigger_link");
-      if (!utmSource && triggerLink) {
-        if (triggerLink.toLowerCase().includes("email")) utmSource = "email";
-        else if (triggerLink.toLowerCase().includes("sms")) utmSource = "sms";
-      }
-
-      console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 Detected utm_source:", utmSource);
-
-      // Build API URL: only contactId + utm_source
-      let apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
-      if (utmSource) {
-        apiUrl += `&utm_source=${encodeURIComponent(utmSource)}`;
-      }
-
+      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
       // Spinner delay
