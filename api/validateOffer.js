@@ -7,12 +7,19 @@ const valueIsNo  = v => ["no","false","0",""].includes(normLower(v));
 
 export default async function validateOffer(req, res) {
   try {
-    const { contactId, utm_source } = req.query;
-    if (!contactId) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    // --- MANUALLY PARSE QUERY PARAMETERS ---
+    const url = new URL(req.url, `https://${req.headers.host}`);
+    const contactId = url.searchParams.get("contactId");
+    const utm_source = url.searchParams.get("utm_source");
+
+    if (!contactId) {
+      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    }
 
     console.log("🕹️ validateOffer called | contactId:", contactId);
-    console.log("📝 Incoming query params:", req.query);
+    console.log("📝 Incoming query params:", Object.fromEntries(url.searchParams.entries()));
 
+    // --- GHL API CONFIG ---
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
     const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
@@ -38,6 +45,7 @@ export default async function validateOffer(req, res) {
 
     if (!contact) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
 
+    // --- VALIDATION LOGIC ---
     const hasTag = Array.isArray(contact.tags) &&
       contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
 
@@ -72,7 +80,7 @@ export default async function validateOffer(req, res) {
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // Preserve only contactId + utm_source in redirect
+    // --- BUILD REDIRECT URL (ONLY contactId + utm_source) ---
     const qs = new URLSearchParams();
     qs.set("contactId", contactId);
     if (utm_source) qs.set("utm_source", utm_source);
@@ -83,9 +91,11 @@ export default async function validateOffer(req, res) {
 
     console.log("➡️ Redirecting to:", redirectTo);
 
+    // --- NO-CACHE HEADERS ---
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
+
     return res.redirect(302, redirectTo);
 
   } catch (err) {
