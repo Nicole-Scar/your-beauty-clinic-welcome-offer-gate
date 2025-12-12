@@ -15,6 +15,7 @@
       background: #faf7f5;
       font-family: system-ui, sans-serif;
       color: #333;
+      margin: 0;
     }
     .spinner {
       width: 40px;
@@ -29,6 +30,10 @@
       to { transform: rotate(360deg); }
     }
   </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <p>Verifying your offer...</p>
 
   <script>
     (function () {
@@ -42,28 +47,20 @@
         return;
       }
 
-      // Only send contactId + UTM parameters to the backend
+      // Preserve only contactId + UTM parameters
       const allowedParams = ["contactId", "utm_source", "utm_medium", "utm_campaign"];
-      const qs = allowedParams
-        .map(key => {
-          const value = params.get(key);
-          return value ? `${key}=${encodeURIComponent(value)}` : null;
-        })
-        .filter(Boolean)
-        .join("&");
+      const qs = new URLSearchParams(
+        Array.from(params.entries()).filter(([key]) => allowedParams.includes(key))
+      ).toString();
 
       const apiUrl = "/api/validateOffer?" + qs;
       console.log("🔄 Redirecting to API:", apiUrl);
 
+      // Spinner delay before redirect
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
     })();
   </script>
-
-</head>
-<body>
-  <div class="spinner"></div>
-  <p>Verifying your offer...</p>
 </body>
 </html>

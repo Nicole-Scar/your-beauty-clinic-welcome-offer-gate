@@ -8,7 +8,8 @@ const valueIsNo  = v => ["no","false","0",""].includes(normLower(v));
 export default async function validateOffer(req, res) {
   try {
     const { contactId } = req.query;
-    if (!contactId) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    if (!contactId)
+      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
 
     console.log("🕹️ validateOffer called, contactId:", contactId);
     console.log("📝 Incoming query params:", req.query);
@@ -36,7 +37,8 @@ export default async function validateOffer(req, res) {
       }
     }
 
-    if (!contact) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    if (!contact)
+      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
 
     const hasTag = Array.isArray(contact.tags) && contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
 
@@ -72,7 +74,7 @@ export default async function validateOffer(req, res) {
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // --- ONLY KEEP contactId + UTM params in redirect URL ---
+    // Only preserve contactId + UTM parameters
     const allowedParams = ["contactId", "utm_source", "utm_medium", "utm_campaign"];
     const qs = Object.entries(req.query)
       .filter(([key]) => allowedParams.includes(key))
