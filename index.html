@@ -37,17 +37,28 @@
 
   <script>
     (function() {
+
+      /* ⭐ NEW: Automatic cache-busting to prevent UTM stripping */
+      if (!sessionStorage.getItem("cacheBustInjected")) {
+        sessionStorage.setItem("cacheBustInjected", "1");
+        const bust = Date.now();
+        const url = new URL(window.location.href);
+        url.searchParams.set("cb", bust);
+        window.location.replace(url.toString());
+        return; // stop execution until reload happens
+      }
+      /* ⭐ End of addition */
+
+
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
       let utmSource = params.get("utm_source");
 
-      // --- UTM fallback based on trigger link path ---
       if (!utmSource) {
-        const triggerLink = params.get("trigger_link");
-        if (triggerLink) {
-          if (triggerLink.toLowerCase().includes("email")) utmSource = "email";
-          else if (triggerLink.toLowerCase().includes("sms")) utmSource = "sms";
-        }
+        // Fallback detection based on path
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes("/email")) utmSource = "email";
+        else if (path.includes("/sms")) utmSource = "sms";
       }
 
       console.log("🪶 ContactId detected:", contactId);
@@ -59,7 +70,7 @@
         );
       }
 
-      // --- Build API URL: only contactId + utm_source, strip all other params ---
+      // Only preserve contactId + utm_source
       const apiParams = new URLSearchParams();
       apiParams.set("contactId", contactId);
       if (utmSource) apiParams.set("utm_source", utmSource);
