@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -41,7 +41,7 @@
       const contactId = params.get("contactId");
       let utmSource = params.get("utm_source");
 
-      // --- UTM fallback from trigger_link parameter ---
+      // --- UTM fallback based on trigger link path ---
       if (!utmSource) {
         const triggerLink = params.get("trigger_link");
         if (triggerLink) {
@@ -59,7 +59,7 @@
         );
       }
 
-      // Only preserve contactId + utm_source
+      // --- Build API URL: only contactId + utm_source, strip all other params ---
       const apiParams = new URLSearchParams();
       apiParams.set("contactId", contactId);
       if (utmSource) apiParams.set("utm_source", utmSource);
