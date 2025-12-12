@@ -42,7 +42,7 @@
         return;
       }
 
-      // Only forward contactId + UTM parameters
+      // Only send contactId + UTM parameters to the backend
       const allowedParams = ["contactId", "utm_source", "utm_medium", "utm_campaign"];
       const qs = allowedParams
         .map(key => {
@@ -55,7 +55,6 @@
       const apiUrl = "/api/validateOffer?" + qs;
       console.log("🔄 Redirecting to API:", apiUrl);
 
-      // Spinner delay for UX
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
