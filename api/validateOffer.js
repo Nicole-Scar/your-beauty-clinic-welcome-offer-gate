@@ -7,7 +7,7 @@ const valueIsNo = v => ["no","false","0",""].includes(normLower(v));
 
 export default async function validateOffer(req, res) {
   try {
-    // --- Read from full URL to preserve query params ---
+    // Parse full URL to capture contactId + utm_source
     const url = new URL(req.url, `https://${req.headers.host}`);
     const contactId = url.searchParams.get("contactId");
     const utmSource = url.searchParams.get("utm_source");
@@ -76,10 +76,10 @@ export default async function validateOffer(req, res) {
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // --- Build redirect URL with only contactId + utm_source ---
+    // Build redirect URL with contactId + utm_source (only if valid)
     const qs = new URLSearchParams();
     qs.set("contactId", contactId);
-    if (utmSource) qs.set("utm_source", utmSource);
+    if (utmSource === "email" || utmSource === "sms") qs.set("utm_source", utmSource);
 
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
