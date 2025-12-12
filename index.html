@@ -37,8 +37,9 @@
 
   <script>
     (function () {
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("contactId");
+      const url = new URL(window.location.href);
+      const contactId = url.searchParams.get("contactId");
+      const utmSource = url.searchParams.get("utm_source");
 
       if (!contactId) {
         window.location.replace(
@@ -47,19 +48,32 @@
         return;
       }
 
-      // Preserve only contactId + UTM parameters
-      const allowedParams = ["contactId", "utm_source", "utm_medium", "utm_campaign"];
-      const qs = new URLSearchParams(
-        Array.from(params.entries()).filter(([key]) => allowedParams.includes(key))
-      ).toString();
+      // Rebuild query string with only contactId + utm_source
+      const qs = new URLSearchParams();
+      qs.set("contactId", contactId);
+      if (utmSource) qs.set("utm_source", utmSource);
 
-      const apiUrl = "/api/validateOffer?" + qs;
+      const apiUrl = "/api/validateOffer?" + qs.toString();
       console.log("🔄 Redirecting to API:", apiUrl);
 
-      // Spinner delay before redirect
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
+
+      // Optional: strict check for book-now buttons
+      document.querySelectorAll(".book-now-button").forEach(btn => {
+        btn.addEventListener("click", async e => {
+          try {
+            const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
+            if (res.url && res.url.includes("invalid")) {
+              e.preventDefault();
+              window.location.replace(res.url);
+            }
+          } catch (err) {
+            console.error("HEAD check failed", err);
+          }
+        });
+      });
     })();
   </script>
 </body>
