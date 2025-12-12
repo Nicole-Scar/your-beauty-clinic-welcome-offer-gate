@@ -30,9 +30,11 @@ export default async function validateOffer(req,res){
         headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"}
       });
       const data = await response.json().catch(()=>({}));
+
+      // --- FIX: correctly unwrap contact object ---
       const candidate = data.contact || data;
-      if(response.ok && candidate && candidate.id){
-        contact = candidate;
+      if(response.ok && candidate && (candidate.id || candidate.contact)){
+        contact = candidate.contact || candidate; 
         break;
       }
     }
@@ -77,7 +79,7 @@ export default async function validateOffer(req,res){
     const qs = new URLSearchParams();
     qs.set("contactId", contactId);
 
-    // Preserve UTM
+    // Preserve UTM from original link
     const utm_source = url.searchParams.get("utm_source");
     if(utm_source) qs.set("utm_source", utm_source);
 
