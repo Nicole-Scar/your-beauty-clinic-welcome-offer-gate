@@ -37,8 +37,20 @@
 
   <script>
     (function() {
+      // Parse full query string
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
+      let utmSource = params.get("utm_source");
+
+      // Fallback detection based on trigger link path if utm_source missing
+      if (!utmSource) {
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes("/email")) utmSource = "email";
+        else if (path.includes("/sms")) utmSource = "sms";
+      }
+
+      console.log("🪶 ContactId detected:", contactId);
+      console.log("💡 Detected utm_source:", utmSource);
 
       if (!contactId) {
         return window.location.replace(
@@ -46,17 +58,12 @@
         );
       }
 
-      // --- UTM source directly from query string ---
-      let utmSource = params.get("utm_source") || "email"; // default fallback
-      console.log("💡 Detected utm_source:", utmSource);
-
-      // Build API URL including only contactId + utm_source
+      // Build API URL with only contactId + utm_source
       let apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
       if (utmSource) {
         apiUrl += `&utm_source=${encodeURIComponent(utmSource)}`;
       }
 
-      console.log("🪶 ContactId detected:", contactId);
       console.log("🔄 Redirecting to API route:", apiUrl);
 
       // Spinner delay before redirect
