@@ -39,7 +39,6 @@
     (function () {
       const url = new URL(window.location.href);
       const contactId = url.searchParams.get("contactId");
-      const utmSource = url.searchParams.get("utm_source");
 
       if (!contactId) {
         window.location.replace(
@@ -48,19 +47,15 @@
         return;
       }
 
-      // Rebuild query string with only contactId + utm_source
-      const qs = new URLSearchParams();
-      qs.set("contactId", contactId);
-      if (utmSource) qs.set("utm_source", utmSource);
-
-      const apiUrl = "/api/validateOffer?" + qs.toString();
+      // Only send contactId to backend; utm_source detected there
+      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
       console.log("🔄 Redirecting to API:", apiUrl);
 
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
 
-      // Optional: strict check for book-now buttons
+      // Optional book-now strict check
       document.querySelectorAll(".book-now-button").forEach(btn => {
         btn.addEventListener("click", async e => {
           try {

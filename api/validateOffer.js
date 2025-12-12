@@ -7,19 +7,20 @@ const valueIsNo  = v => ["no","false","0",""].includes(normLower(v));
 
 export default async function validateOffer(req, res) {
   try {
-    // --- MANUALLY PARSE QUERY PARAMETERS ---
     const url = new URL(req.url, `https://${req.headers.host}`);
     const contactId = url.searchParams.get("contactId");
-    const utm_source = url.searchParams.get("utm_source");
 
     if (!contactId) {
       return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
 
-    console.log("🕹️ validateOffer called | contactId:", contactId);
-    console.log("📝 Incoming query params:", Object.fromEntries(url.searchParams.entries()));
+    // --- DETERMINE UTM SOURCE BASED ON PATH ---
+    let utm_source = "unknown";
+    if (url.pathname.includes("/email")) utm_source = "email";
+    else if (url.pathname.includes("/sms")) utm_source = "sms";
 
-    // --- GHL API CONFIG ---
+    console.log("🕹️ validateOffer called | contactId:", contactId, "| utm_source:", utm_source);
+
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
     const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
@@ -59,7 +60,6 @@ export default async function validateOffer(req, res) {
       if (f.name && normLower(f.name) === "welcome offer expiry") expiryDate = f.value;
     }
 
-    // Fallback boolean mapping
     const booleanFields = cf
       .map(f => ({ raw: f, val: normLower(f.value) }))
       .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
@@ -80,10 +80,10 @@ export default async function validateOffer(req, res) {
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // --- BUILD REDIRECT URL (ONLY contactId + utm_source) ---
+    // --- BUILD REDIRECT URL ---
     const qs = new URLSearchParams();
     qs.set("contactId", contactId);
-    if (utm_source) qs.set("utm_source", utm_source);
+    qs.set("utm_source", utm_source);
 
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
@@ -91,7 +91,6 @@ export default async function validateOffer(req, res) {
 
     console.log("➡️ Redirecting to:", redirectTo);
 
-    // --- NO-CACHE HEADERS ---
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
