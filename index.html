@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Validating your offer...</title>
 
   <style>
@@ -26,9 +26,7 @@
       animation: spin 1s linear infinite;
       margin-bottom: 10px;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -37,8 +35,8 @@
 
   <script>
     (function () {
-      const url = new URL(window.location.href);
-      const contactId = url.searchParams.get("contactId");
+      const params = new URLSearchParams(window.location.search);
+      const contactId = params.get("contactId");
 
       if (!contactId) {
         window.location.replace(
@@ -47,7 +45,7 @@
         return;
       }
 
-      // Only send contactId to backend; utm_source detected there
+      // Send only contactId to backend; backend picks up utm_source
       const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
       console.log("🔄 Redirecting to API:", apiUrl);
 
@@ -55,7 +53,6 @@
         window.location.replace(apiUrl);
       }, 2000);
 
-      // Optional book-now strict check
       document.querySelectorAll(".book-now-button").forEach(btn => {
         btn.addEventListener("click", async e => {
           try {
