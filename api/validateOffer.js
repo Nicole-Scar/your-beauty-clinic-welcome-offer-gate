@@ -76,14 +76,17 @@ export default async function validateOffer(req, res) {
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // Build redirect URL with contactId + utm_source (only if valid)
+    // --- Build redirect URL with only contactId + utm_source ---
+    console.log("💡 Detected utm_source:", utmSource);  // <-- NEW LINE
+
     const qs = new URLSearchParams();
     qs.set("contactId", contactId);
-    if (utmSource === "email" || utmSource === "sms") qs.set("utm_source", utmSource);
+    if (utmSource) qs.set("utm_source", utmSource);
 
     const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
-      : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+     ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
+     : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+
 
     console.log("🕹️ validateOffer called | contactId:", contactId);
     console.log("📝 Incoming query params:", Object.fromEntries(url.searchParams));
