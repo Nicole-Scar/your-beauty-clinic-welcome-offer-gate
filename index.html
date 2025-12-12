@@ -39,17 +39,6 @@
     (function() {
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
-      let utmSource = params.get("utm_source");
-
-      if (!utmSource) {
-        // Fallback detection based on path
-        const path = window.location.pathname.toLowerCase();
-        if (path.includes("/email")) utmSource = "email";
-        else if (path.includes("/sms")) utmSource = "sms";
-      }
-
-      console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 Detected utm_source:", utmSource);
 
       if (!contactId) {
         return window.location.replace(
@@ -57,12 +46,25 @@
         );
       }
 
-      // Only preserve contactId + utm_source
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      if (utmSource) apiParams.set("utm_source", utmSource);
+      // Determine UTM source
+      let utmSource = params.get("utm_source");
 
-      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
+      // Fallback: detect from trigger_link
+      const triggerLink = params.get("trigger_link");
+      if (!utmSource && triggerLink) {
+        if (triggerLink.toLowerCase().includes("email")) utmSource = "email";
+        else if (triggerLink.toLowerCase().includes("sms")) utmSource = "sms";
+      }
+
+      console.log("🪶 ContactId detected:", contactId);
+      console.log("💡 Detected utm_source:", utmSource);
+
+      // Build API URL: only contactId + utm_source
+      let apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
+      if (utmSource) {
+        apiUrl += `&utm_source=${encodeURIComponent(utmSource)}`;
+      }
+
       console.log("🔄 Redirecting to API route:", apiUrl);
 
       // Spinner delay
