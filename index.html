@@ -4,11 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Validating your offer...</title>
-
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-
   <style>
     body {
       display: flex;
@@ -30,9 +28,7 @@
       animation: spin 1s linear infinite;
       margin-bottom: 10px;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -43,7 +39,7 @@
     (function() {
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
-      const utmSource = params.get("utm_source") || "unknown";
+      const utmSource = params.get("utm_source");
 
       if (!contactId) {
         return window.location.replace(
@@ -51,30 +47,20 @@
         );
       }
 
+      // Build API URL including contactId + utm_source
+      let apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
+      if (utmSource) {
+        apiUrl += `&utm_source=${encodeURIComponent(utmSource)}`;
+      }
+
       console.log("🪶 ContactId detected:", contactId);
       console.log("🔄 Preserving utm_source:", utmSource);
-
-      // Build API URL including contactId + utm_source only
-      const apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}&utm_source=${encodeURIComponent(utmSource)}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
-      // Spinner delay for 2s
+      // Spinner delay before redirect
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
-
-      // Optional: strict booking button check
-      document.querySelectorAll(".book-now-button").forEach(btn => {
-        btn.addEventListener("click", async (e) => {
-          try {
-            const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
-            if (res.url && res.url.includes("invalid")) {
-              e.preventDefault();
-              window.location.replace(res.url);
-            }
-          } catch (err) { console.error("HEAD check failed", err); }
-        });
-      });
     })();
   </script>
 </body>
