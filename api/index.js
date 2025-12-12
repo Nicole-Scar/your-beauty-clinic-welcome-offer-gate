@@ -1,11 +1,47 @@
-export default function handler(req, res) {
-  const html = `
+export default async function handler(req, res) {
+  // Parse incoming params
+  const { contactId, sessionId, trigger_link, cb, ...rest } = req.query;
+
+  // STEP 1 — Force a clean reload ONCE using a cache-buster param
+  if (!cb) {
+    const clean = new URL(req.url, `https://${req.headers.host}`);
+    clean.searchParams.set("cb", Date.now());
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    return res.redirect(302, clean.toString());
+  }
+
+  // STEP 2 — Extract ONLY utm_* params
+  const utms = {};
+  Object.keys(rest).forEach((key) => {
+    if (key.startsWith("utm_")) {
+      utms[key] = rest[key];
+    }
+  });
+
+  // STEP 3 — Build final redirect URL (only contactId + utms)
+  const final = new URL(
+    "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477"
+  );
+
+  if (contactId) final.searchParams.set("contactId", contactId);
+  Object.keys(utms).forEach((key) =>
+    final.searchParams.set(key, utms[key])
+  );
+
+  const finalUrl = final.toString();
+
+  // STEP 4 — Serve dynamic spinner page for 1 second
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Content-Type", "text/html");
+
+  return res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Validating your offer...</title>
+
   <style>
     body {
       display: flex;
@@ -27,52 +63,22 @@ export default function handler(req, res) {
       animation: spin 1s linear infinite;
       margin-bottom: 10px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin { 
+      to { transform: rotate(360deg); } 
+    }
   </style>
 </head>
+
 <body>
   <div class="spinner"></div>
   <p>Verifying your offer...</p>
+
   <script>
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("contactId");
-      let utmSource = params.get("utm_source");
-
-      // Fallback if utm_source missing
-      if (!utmSource) {
-        const path = window.location.pathname.toLowerCase();
-        if (path.includes("/email")) utmSource = "email";
-        else if (path.includes("/sms")) utmSource = "sms";
-      }
-
-      if (!contactId) {
-        return window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
-      }
-
-      // Build URL for validateOffer API, preserving only contactId + utm_source
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      if (utmSource) apiParams.set("utm_source", utmSource);
-
-      const apiUrl = "/api/validateOffer?" + apiParams.toString();
-      console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 Detected utm_source:", utmSource);
-      console.log("🔄 Redirecting to API route:", apiUrl);
-
-      // Spinner delay
-      setTimeout(() => {
-        window.location.replace(apiUrl);
-      }, 2000);
-    })();
+    setTimeout(() => {
+      window.location.replace("${finalUrl}");
+    }, 1000);
   </script>
 </body>
 </html>
-  `;
-
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  res.setHeader("Content-Type", "text/html");
-  res.status(200).send(html);
+  `);
 }

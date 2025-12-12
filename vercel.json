@@ -1,8 +1,10 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/", "destination": "/api/index" }
+  ],
   "headers": [
     {
-      "source": "/",
+      "source": "/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate" },
         { "key": "Pragma", "value": "no-cache" },
