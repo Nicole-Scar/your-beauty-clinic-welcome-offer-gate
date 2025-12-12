@@ -38,18 +38,24 @@
 
   <script>
   (function() {
-    const rawQuery = window.location.search; // includes all original UTMs
-    const params = new URLSearchParams(rawQuery);
+    const params = new URLSearchParams(window.location.search);
     const contactId = params.get("contactId");
+    const utmSource = params.get("utm_source");
 
     if (!contactId) {
       return window.location.replace("https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
 
     console.log("🪶 ContactId detected:", contactId);
-    console.log("🔄 Preserving full query string:", rawQuery);
+    console.log("🔄 Preserving utm_source:", utmSource);
 
-    const apiUrl = `/api/validateOffer${rawQuery}`;
+    // Build API URL including only contactId + utm_source
+    let apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
+    if (utmSource) {
+      apiUrl += `&utm_source=${encodeURIComponent(utmSource)}`;
+    }
+
+    console.log("🔄 Redirecting to API route:", apiUrl);
 
     // Spinner visible for 2s then redirect
     setTimeout(() => {
