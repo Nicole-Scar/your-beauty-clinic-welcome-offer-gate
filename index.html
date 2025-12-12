@@ -37,13 +37,12 @@
 
   <script>
     (function() {
-      // Parse full query string
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
       let utmSource = params.get("utm_source");
 
-      // Fallback detection based on trigger link path if utm_source missing
       if (!utmSource) {
+        // Fallback detection based on path
         const path = window.location.pathname.toLowerCase();
         if (path.includes("/email")) utmSource = "email";
         else if (path.includes("/sms")) utmSource = "sms";
@@ -58,15 +57,15 @@
         );
       }
 
-      // Build API URL with only contactId + utm_source
-      let apiUrl = `/api/validateOffer?contactId=${encodeURIComponent(contactId)}`;
-      if (utmSource) {
-        apiUrl += `&utm_source=${encodeURIComponent(utmSource)}`;
-      }
+      // Only preserve contactId + utm_source
+      const apiParams = new URLSearchParams();
+      apiParams.set("contactId", contactId);
+      if (utmSource) apiParams.set("utm_source", utmSource);
 
+      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
-      // Spinner delay before redirect
+      // Spinner delay
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 2000);
