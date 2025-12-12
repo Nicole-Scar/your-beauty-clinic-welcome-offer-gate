@@ -1,14 +1,27 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
   "rewrites": [
-    { "source": "/", "destination": "/api/index" }
+    {
+      "source": "/",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "utm_source" }],
+      "destination": "/api/index"
+    }
   ],
+
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api).*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate" },
         { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" }
+        { "key": "Expires", "value": "0" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "no-referrer-when-downgrade" }
       ]
     }
   ]
