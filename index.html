@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Validating...</title>
+  <title>Validating your offer...</title>
 
-  <!-- Restored original styles -->
   <style>
     body {
       display: flex;
@@ -27,19 +26,15 @@
       margin-bottom: 10px;
     }
     @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+      to { transform: rotate(360deg); }
     }
   </style>
 
   <script>
-    // --- Optimization: zero logic changed, safer + faster ---
     (function () {
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
 
-      // No logic changes, just tightened code
       if (!contactId) {
         window.location.replace(
           "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
@@ -47,16 +42,27 @@
         return;
       }
 
-      const url = "/api/validateOffer?" + params.toString();
-      console.log("➡️ Redirecting to validator:", url);
+      // Only forward contactId + UTM parameters
+      const allowedParams = ["contactId", "utm_source", "utm_medium", "utm_campaign"];
+      const qs = allowedParams
+        .map(key => {
+          const value = params.get(key);
+          return value ? `${key}=${encodeURIComponent(value)}` : null;
+        })
+        .filter(Boolean)
+        .join("&");
 
-      // Use location.replace to avoid history pollution
-      window.location.replace(url);
+      const apiUrl = "/api/validateOffer?" + qs;
+      console.log("🔄 Redirecting to API:", apiUrl);
+
+      // Spinner delay for UX
+      setTimeout(() => {
+        window.location.replace(apiUrl);
+      }, 2000);
     })();
   </script>
 
 </head>
-
 <body>
   <div class="spinner"></div>
   <p>Verifying your offer...</p>
