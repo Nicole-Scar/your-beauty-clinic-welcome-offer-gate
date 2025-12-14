@@ -8,7 +8,6 @@ function normLower(v) {
 export default async function validateOffer(req, res) {
   try {
     const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
-
     const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
     if (!contactId) {
@@ -33,7 +32,6 @@ export default async function validateOffer(req, res) {
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
       });
-
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
@@ -63,15 +61,9 @@ export default async function validateOffer(req, res) {
       return s === "yes" || s === "true" || s === "1";
     };
 
-    const valueIsNo = (v) => {
-      const s = normLower(v);
-      return s === "no" || s === "false" || s === "0" || s === "";
-    };
-
     let welcomeOfferAccess = null;
     let offerBooked = null;
 
-    // === VALIDATION LOGIC REMAINS EXACTLY AS LAST CORRECT SCRIPT ===
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
@@ -97,22 +89,45 @@ export default async function validateOffer(req, res) {
       }
     }
 
-    if (welcomeOfferAccess === null) welcomeOfferAccess = false;
-    if (offerBooked === null) offerBooked = false;
+    // === Fallback boolean mapping restored, but ignore numeric fields ===
+    if (welcomeOfferAccess === null || offerBooked === null) {
+      const booleanFields = cf
+        .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
+        .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
+
+      console.log("🔎 boolean-like custom fields:", booleanFields.map(b => ({ id: b.id, name: b.name, val: b.val })));
+
+      if (booleanFields.length === 1) {
+        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
+        if (offerBooked === null) offerBooked = false;
+        console.log("🔎 Fallback: single boolean field mapped to welcomeOfferAccess");
+      } else if (booleanFields.length >= 2) {
+        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
+        if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].raw.value);
+        console.log("🔎 Fallback: first boolean -> welcomeOfferAccess, second -> offerBooked");
+      }
+    }
+
+    if (welcomeOfferAccess === null) {
+      console.log("⚠️ Could not determine welcomeOfferAccess — default false");
+      welcomeOfferAccess = false;
+    }
+    if (offerBooked === null) {
+      console.log("⚠️ Could not determine offerBooked — default false");
+      offerBooked = false;
+    }
 
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
+    console.log("💡 Forwarded UTMs:", { utm_source, utm_medium, utm_campaign, source });
 
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
     console.log("➡️ isValid:", isValid);
 
-    // === UTM FORWARDING & LOGGING FIX ===
     const qs = new URLSearchParams({ contactId });
     if (utm_source) qs.set("utm_source", utm_source);
     if (utm_medium) qs.set("utm_medium", utm_medium);
     if (utm_campaign) qs.set("utm_campaign", utm_campaign);
     if (source) qs.set("source", source);
-
-    console.log("💡 Forwarded UTMs:", { utm_source, utm_medium, utm_campaign, source });
 
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
