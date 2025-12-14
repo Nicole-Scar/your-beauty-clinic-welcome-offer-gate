@@ -14,6 +14,7 @@ export default async function validateOffer(req, res) {
     const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
     const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
 
+    // Fetch contact
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
       `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
@@ -21,9 +22,7 @@ export default async function validateOffer(req, res) {
 
     let contact = null;
     for (const endpoint of endpoints) {
-      const response = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
-      });
+      const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }});
       if (!response.ok) continue;
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
@@ -32,31 +31,36 @@ export default async function validateOffer(req, res) {
 
     if (!contact) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
 
+    const tags = Array.isArray(contact.tags) ? contact.tags.map(t => String(t).toLowerCase()) : [];
+    const hasTag = tags.includes("welcome offer opt-in");
+
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
 
-    let welcomeOfferAccess = null;
-    let offerBooked = null;
+    let welcomeOfferAccess = false;
+    let offerBooked = false;
     let expiryDate = null;
-
-    const valueToLower = v => (v === null || v === undefined ? "" : String(v)).toLowerCase();
 
     cf.forEach(f => {
       if (!f) return;
-      const name = valueToLower(f.name || f.label);
-      const value = valueToLower(f.value);
+      const name = String(f.name || f.label || "").toLowerCase();
+      const value = String(f.value || "").toLowerCase();
 
+      // Explicit rules
       if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = ["yes","true","1"].includes(value);
       if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = ["yes","true","1"].includes(value);
-      if (name === "welcome offer expiry") expiryDate = f.value;
 
-      if (welcomeOfferAccess === null && name.includes("welcome")) welcomeOfferAccess = ["yes","true","1"].includes(value);
-      if (offerBooked === null && name.includes("book")) offerBooked = ["yes","true","1"].includes(value);
+      // Fallback by name
+      if (!welcomeOfferAccess && name.includes("welcome")) welcomeOfferAccess = ["yes","true","1"].includes(value);
+      if (!offerBooked && name.includes("book")) offerBooked = ["yes","true","1"].includes(value);
+
+      if (name === "welcome offer expiry") expiryDate = f.value;
     });
 
-    welcomeOfferAccess ??= false;
-    offerBooked ??= false;
     const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
-    const isValid = welcomeOfferAccess && !offerBooked && !isExpired;
+
+    // VALIDATION LOGIC
+    // Access allowed ONLY if: tag exists, welcomeOfferAccess = yes, offerBooked = no, not expired
+    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
     const qs = new URLSearchParams({ contactId });
     if (utm_source) qs.set("utm_source", utm_source);
@@ -68,7 +72,7 @@ export default async function validateOffer(req, res) {
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
-    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| isExpired:", isExpired);
+    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| isExpired:", isExpired, "| hasTag:", hasTag);
     console.log("💡 Forwarded UTMs:", {utm_source, utm_medium, utm_campaign, source});
     console.log("➡️ Redirecting to:", redirectTo);
 
