@@ -1,5 +1,4 @@
-import fetch from 'node-fetch';
-
+// No 'import fetch' — use native fetch in Node 18+
 function norm(v) {
   return (v === null || v === undefined) ? '' : String(v).trim();
 }
@@ -9,10 +8,8 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    // --- Parse full URL to preserve all query params ---
-    const url = new URL(req.url, `https://${req.headers.host}`);
-    const contactId = url.searchParams.get("contactId");
-    
+    const { contactId } = req.query;
+
     if (!contactId) {
       console.log("❌ No contactId in URL");
       return res.redirect(
@@ -21,7 +18,6 @@ export default async function validateOffer(req, res) {
       );
     }
     console.log("🕹️ validateOffer called, contactId:", contactId);
-    console.log("📝 Incoming query params:", Object.fromEntries(url.searchParams));
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
@@ -43,7 +39,7 @@ export default async function validateOffer(req, res) {
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
-        contact = data.contact || candidate;
+        contact = candidate;
         console.log("✅ Contact fetched:", contact.id || contact);
         break;
       } else {
@@ -67,28 +63,25 @@ export default async function validateOffer(req, res) {
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
-    const valueIsYes = (v) => {
-      const s = normLower(v);
-      return s === "yes" || s === "true" || s === "1";
-    };
-    const valueIsNo = (v) => {
-      const s = normLower(v);
-      return s === "no" || s === "false" || s === "0" || s === "";
-    };
+    const valueIsYes = (v) => ["yes", "true", "1"].includes(normLower(v));
+    const valueIsNo = (v) => ["no", "false", "0", ""].includes(normLower(v));
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
+    let expiryDate = null;
 
-    // --- Validation logic remains unchanged ---
+    // --- Main field mapping by env IDs ---
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
         if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
         if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
+        if (f.name && normLower(f.name) === "welcome offer expiry") expiryDate = f.value;
       }
-      console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
+      console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked, expiryDate });
     }
 
+    // --- Fallback: infer fields by name ---
     if (welcomeOfferAccess === null || offerBooked === null) {
       for (const f of cf) {
         if (!f) continue;
@@ -105,6 +98,7 @@ export default async function validateOffer(req, res) {
       }
     }
 
+    // --- Fallback boolean mapping ---
     if (welcomeOfferAccess === null || offerBooked === null) {
       const booleanFields = cf
         .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
@@ -123,39 +117,35 @@ export default async function validateOffer(req, res) {
       }
     }
 
-    if (welcomeOfferAccess === null) {
-      console.log("⚠️ Could not determine welcomeOfferAccess — default false");
-      welcomeOfferAccess = false;
-    }
-    if (offerBooked === null) {
-      console.log("⚠️ Could not determine offerBooked — default false");
-      offerBooked = false;
-    }
+    welcomeOfferAccess ??= false;
+    offerBooked ??= false;
 
-    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
+    // --- Expiry check ---
+    let isExpired = false;
+    if (expiryDate) isExpired = new Date(expiryDate) < new Date();
 
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
+    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| isExpired:", isExpired);
+
+    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
     console.log("➡️ isValid:", isValid);
 
-    // --- Preserve all UTMs and contactId in redirect ---
-    const qs = new URLSearchParams();
-    qs.set("contactId", contact.id || contactId);
-
-    ["utm_source","utm_medium","utm_campaign","source"].forEach(k => {
-      const val = url.searchParams.get(k);
-      if (val) qs.set(k, val);
-    });
+    // --- Preserve UTM parameters ---
+    const allowed = ["contactId", "utm_source", "utm_medium", "utm_campaign", "source"];
+    const qs = Object.entries(req.query)
+      .filter(([k]) => allowed.includes(k))
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join("&");
 
     const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
+      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     console.log("➡️ Redirecting to:", redirectTo);
 
-    // --- Updated cache headers ---
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+    // --- Cache headers ---
+    res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma","no-cache");
+    res.setHeader("Expires","0");
 
     return res.redirect(302, redirectTo);
 
