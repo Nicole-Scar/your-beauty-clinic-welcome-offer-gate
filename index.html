@@ -8,42 +8,61 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <style>
-    body { display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:#faf7f5; font-family:system-ui,sans-serif; color:#333; margin:0; }
-    .spinner { width:40px; height:40px; border:4px solid #ddd; border-top:4px solid #c49a6c; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:10px; }
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #faf7f5;
+      font-family: system-ui, sans-serif;
+      color: #333;
+      margin: 0;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #ddd;
+      border-top: 4px solid #c49a6c;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="spinner"></div>
   <p>Verifying your offer...</p>
+
   <script>
     (function() {
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
-      const utms = ["utm_source","utm_medium","utm_campaign","source"].reduce((acc,key)=>{
-        const v=params.get(key); if(v) acc[key]=v; return acc;
-      },{});
-      console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 UTM values detected:", utms);
 
-      if(!contactId){
-        window.location.href="https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+      if (!contactId) {
+        console.error("❌ No contactId detected in URL");
+        return window.location.replace(
+          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+        );
+      }
+
+      // Cache-buster to prevent browser caching stripping UTMs
+      if (!params.has("cb")) {
+        params.set("cb", Date.now());
+        window.location.replace(`${window.location.pathname}?${params.toString()}`);
         return;
       }
 
-      if(!params.has("cb")){
-        params.set("cb",Date.now());
-        window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-      }
-
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      Object.entries(utms).forEach(([k,v])=>apiParams.set(k,v));
-
-      const apiUrl=`/api/validateOffer?${apiParams.toString()}`;
+      // Build API URL forwarding all query params
+      const apiUrl = `/api/validateOffer?${params.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
+      console.log("📝 Query params:", Object.fromEntries(params));
 
-      window.location.href=apiUrl;
+      // Redirect to API after short delay
+      setTimeout(() => {
+        window.location.replace(apiUrl);
+      }, 500);
     })();
   </script>
 </body>
