@@ -36,49 +36,60 @@
   <p>Verifying your offer...</p>
 
   <script>
-  (function() {
-    const params = new URLSearchParams(window.location.search);
-    const contactId = params.get("contactId");
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const contactId = params.get("contactId");
 
-    if (!contactId) {
-      return window.location.replace(
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-      );
-    }
+      if (!contactId) {
+        console.log("❌ No contactId found in URL, redirecting to invalid page");
+        return window.location.replace(
+          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+        );
+      }
 
-    // --- Build API URL preserving all UTMs + cache-buster ---
-    const apiParams = new URLSearchParams();
-    apiParams.set("contactId", contactId);
+      // Detect UTM source from path or query param
+      let utmSource = params.get("utm_source");
+      if (!utmSource) {
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes("/email")) utmSource = "email";
+        else if (path.includes("/sms")) utmSource = "sms";
+      }
 
-    ["utm_source","utm_medium","utm_campaign","source"].forEach(k => {
-      const val = params.get(k);
-      if (val) apiParams.set(k, val);
-    });
+      console.log("🪶 ContactId detected:", contactId);
+      console.log("💡 Detected utm_source:", utmSource);
 
-    // Add cache-buster to prevent browser caching from stripping UTMs
-    if (!params.has("cb")) apiParams.set("cb", Date.now());
-
-    const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
-    console.log("🔄 Redirecting to API route:", apiUrl);
-
-    // Show spinner for at least 1.5s
-    setTimeout(() => window.location.replace(apiUrl), 1500);
-
-    // Optional: strict booking button check
-    document.querySelectorAll(".book-now-button").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        try {
-          const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
-          if (res.url && res.url.includes("invalid")) {
-            e.preventDefault();
-            window.location.replace(res.url);
-          }
-        } catch (err) {
-          console.error("HEAD check failed", err);
-        }
+      // Build clean API params (contactId + all relevant UTMs)
+      const apiParams = new URLSearchParams();
+      apiParams.set("contactId", contactId);
+      ["utm_source", "utm_medium", "utm_campaign", "source"].forEach(k => {
+        const val = params.get(k);
+        if (val) apiParams.set(k, val);
       });
-    });
-  })();
+
+      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
+      console.log("🔄 Redirecting to API route:", apiUrl);
+
+      // Delay slightly to show spinner and ensure logs are flushed
+      setTimeout(() => {
+        window.location.replace(apiUrl);
+      }, 500);
+
+      // Optional: intercept "Book Now" buttons to prevent invalid booking
+      document.querySelectorAll(".book-now-button").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          try {
+            const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
+            if (res.url && res.url.includes("invalid")) {
+              e.preventDefault();
+              console.log("⚠️ Booking blocked: invalid offer");
+              window.location.replace(res.url);
+            }
+          } catch (err) {
+            console.error("HEAD check failed", err);
+          }
+        });
+      });
+    })();
   </script>
 </body>
 </html>
