@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Validating your offer...</title>
 
-  <!-- Disable caching -->
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -29,7 +28,7 @@
       border-top: 4px solid #c49a6c;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -38,25 +37,17 @@
 </head>
 <body>
   <div class="spinner"></div>
-  <p>Verifying your offer…</p>
+  <p>Verifying your offer...</p>
 
   <script>
     (function () {
       const params = new URLSearchParams(window.location.search);
 
       const contactId = params.get("contactId");
-      let utmSource = params.get("utm_source");
+      const utmSource = params.get("utm_source");
 
-      // Fallback: recover utm_source from referrer (fixes GHL stripping)
-      if (!utmSource && document.referrer) {
-        try {
-          const refUrl = new URL(document.referrer);
-          utmSource = refUrl.searchParams.get("utm_source");
-        } catch (e) {}
-      }
-
-      console.log("🪶 ContactId:", contactId);
-      console.log("💡 Final utm_source:", utmSource);
+      console.log("🪶 contactId:", contactId);
+      console.log("💡 utm_source:", utmSource);
 
       if (!contactId) {
         window.location.replace(
@@ -65,17 +56,15 @@
         return;
       }
 
-      // Build CLEAN API URL (only contactId + utm_source)
+      // Build CLEAN API URL (this strips sessionId + trigger_link)
       const apiParams = new URLSearchParams();
       apiParams.set("contactId", contactId);
-      if (utmSource) {
-        apiParams.set("utm_source", utmSource);
-      }
+      if (utmSource) apiParams.set("utm_source", utmSource);
 
       const apiUrl = "/api/validateOffer?" + apiParams.toString();
       console.log("➡️ Redirecting to API:", apiUrl);
 
-      setTimeout(function () {
+      setTimeout(() => {
         window.location.replace(apiUrl);
       }, 1500);
     })();
