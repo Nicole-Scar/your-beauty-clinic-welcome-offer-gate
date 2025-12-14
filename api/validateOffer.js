@@ -1,4 +1,4 @@
-import fetch from "node-fetch"; // ESM import, works with Vercel
+import fetch from "node-fetch"; // ESM-safe for Vercel
 
 function norm(v) {
   return (v === null || v === undefined) ? "" : String(v).trim();
@@ -9,8 +9,12 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    // --- Parse full URL to reliably capture UTMs ---
-    const url = new URL(req.url, `https://${req.headers.host}`);
+    // --- Use URL constructor from absolute URL (req.headers.host) safely ---
+    const host = req.headers.host;
+    const protocol = req.headers["x-forwarded-proto"] || "https";
+    const fullUrl = `${protocol}://${host}${req.url}`;
+    const url = new URL(fullUrl);
+
     const contactId = url.searchParams.get("contactId");
 
     if (!contactId) {
@@ -38,6 +42,7 @@ export default async function validateOffer(req, res) {
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
       });
+
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
@@ -93,11 +98,9 @@ export default async function validateOffer(req, res) {
         const val = f.value;
         if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
           welcomeOfferAccess = valueIsYes(val);
-          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
         }
         if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
           offerBooked = valueIsYes(val);
-          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
         }
       }
     }
@@ -107,9 +110,6 @@ export default async function validateOffer(req, res) {
       const booleanFields = cf
         .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
         .filter(x => typeof x.raw.value === "string" && ["yes","no","true","false","1","0",""].includes(x.val));
-
-      console.log("🔎 boolean-like custom fields:", booleanFields.map(b => ({ id: b.id, name: b.name, val: b.val })));
-
       if (booleanFields.length === 1) {
         if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
         if (offerBooked === null) offerBooked = false;
@@ -125,17 +125,13 @@ export default async function validateOffer(req, res) {
     let isExpired = false;
     if (expiryDate) isExpired = new Date(expiryDate) < new Date();
 
-    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| expiry:", expiryDate, "| isExpired:", isExpired);
-
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
-    console.log("➡️ isValid:", isValid);
 
-    // --- Extract UTMs from query --- 
-    const utmKeys = ["utm_source", "utm_medium", "utm_campaign", "source"];
+    // --- Extract UTMs ---
+    const utmKeys = ["utm_source","utm_medium","utm_campaign","source"];
     const utms = {};
-    utmKeys.forEach(k => { utms[k] = url.searchParams.get(k); });
+    utmKeys.forEach(k => { utms[k] = url.searchParams.get(k) || null; });
 
-    // --- Build redirect URL ---
     const qs = new URLSearchParams();
     qs.set("contactId", contact.id);
     Object.entries(utms).forEach(([k,v]) => { if(v) qs.set(k,v); });
@@ -144,14 +140,16 @@ export default async function validateOffer(req, res) {
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
-    // --- Log UTMs at bottom ---
+    // --- Logs at bottom ---
+    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| expiry:", expiryDate, "| isExpired:", isExpired);
+    console.log("➡️ isValid:", isValid);
     console.log("💡 Forwarded UTMs:", utms);
     console.log("➡️ Redirecting to:", redirectTo);
 
     // --- Cache headers ---
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+    res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma","no-cache");
+    res.setHeader("Expires","0");
 
     return res.redirect(302, redirectTo);
 
