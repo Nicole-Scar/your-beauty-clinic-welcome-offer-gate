@@ -36,62 +36,65 @@
   <p>Verifying your offer...</p>
 
   <script>
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("contactId");
-      let utmSource = params.get("utm_source");
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const contactId = params.get("contactId");
+    let utmSource = params.get("utm_source");
 
-      // Fallback detection from path
-      if (!utmSource) {
-        const path = window.location.pathname.toLowerCase();
-        if (path.includes("/email")) utmSource = "email";
-        else if (path.includes("/sms")) utmSource = "sms";
-      }
+    // Fallback based on path
+    if (!utmSource) {
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes("/email")) utmSource = "email";
+      else if (path.includes("/sms")) utmSource = "sms";
+    }
 
-      console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 Detected utm_source:", utmSource);
+    console.log("🪶 ContactId detected:", contactId);
+    console.log("💡 Detected utm_source:", utmSource);
 
-      if (!contactId) {
-        return window.location.replace(
-          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-        );
-      }
+    if (!contactId) {
+      return window.location.replace(
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+      );
+    }
 
-      // Cache-buster to preserve UTM
-      if (!params.has("cb")) {
-        params.set("cb", Date.now());
-        window.location.replace(`${window.location.pathname}?${params.toString()}`);
-        return;
-      }
+    // Always add a cache-buster if missing to prevent browser caching stripping UTMs
+    if (!params.has("cb")) {
+      params.set("cb", Date.now());
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      console.log("🔄 Adding cache-buster, redirecting to:", newUrl);
+      window.location.replace(newUrl);
+      return;
+    }
 
-      // Only preserve contactId + utm_source
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      if (utmSource) apiParams.set("utm_source", utmSource);
+    // Build clean API params (only contactId + utm_*)
+    const apiParams = new URLSearchParams();
+    apiParams.set("contactId", contactId);
+    if (utmSource) apiParams.set("utm_source", utmSource);
+    ["utm_medium", "utm_campaign", "source"].forEach(k => {
+      if (params.get(k)) apiParams.set(k, params.get(k));
+    });
 
-      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
-      console.log("🔄 Redirecting to API route:", apiUrl);
+    const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
+    console.log("🔄 Redirecting to API route:", apiUrl);
 
-      // Spinner delay
-      setTimeout(() => {
-        window.location.replace(apiUrl);
-      }, 1000);
+    // Delay to show spinner
+    setTimeout(() => window.location.replace(apiUrl), 1500);
 
-      // Optional booking buttons
-      document.querySelectorAll(".book-now-button").forEach(btn => {
-        btn.addEventListener("click", async (e) => {
-          try {
-            const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
-            if (res.url && res.url.includes("invalid")) {
-              e.preventDefault();
-              window.location.replace(res.url);
-            }
-          } catch (err) {
-            console.error("HEAD check failed", err);
+    // Optional: strict booking button check
+    document.querySelectorAll(".book-now-button").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        try {
+          const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
+          if (res.url && res.url.includes("invalid")) {
+            e.preventDefault();
+            window.location.replace(res.url);
           }
-        });
+        } catch (err) {
+          console.error("HEAD check failed", err);
+        }
       });
-    })();
+    });
+  })();
   </script>
 </body>
 </html>

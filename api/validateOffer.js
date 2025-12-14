@@ -1,14 +1,19 @@
-import fetch from "node-fetch";
+// Native fetch is available in Vercel Node 18+
+// No node-fetch import needed
 
 const norm = v => (v == null ? "" : String(v).trim());
 const normLower = v => norm(v).toLowerCase();
-const valueIsYes = v => ["yes", "true", "1"].includes(normLower(v));
+const valueIsYes = v => ["yes","true","1"].includes(normLower(v));
 
-export default async function validateOffer(req, res) {
+module.exports = async function validateOffer(req, res) {
   try {
     const { contactId } = req.query;
     if (!contactId) {
-      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+      console.log("❌ Missing contactId");
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+      );
     }
 
     console.log("🕹️ validateOffer | contactId:", contactId);
@@ -16,6 +21,7 @@ export default async function validateOffer(req, res) {
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
+
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
       `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
@@ -23,7 +29,9 @@ export default async function validateOffer(req, res) {
 
     let contact = null;
     for (const url of endpoints) {
-      const resApi = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+      const resApi = await fetch(url, {
+        headers: { Authorization: `Bearer ${apiKey}` }
+      });
       const raw = await resApi.json().catch(() => ({}));
       const c = raw.contact || raw;
       if (resApi.ok && c && c.id) {
@@ -33,25 +41,27 @@ export default async function validateOffer(req, res) {
     }
 
     if (!contact) {
-      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+      console.log("❌ Contact not found");
+      return res.redirect(
+        302,
+        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+      );
     }
 
-    const hasTag = Array.isArray(contact.tags) && contact.tags.some(t => normLower(t) === "welcome offer opt-in");
-    const cf = contact.customField || contact.customFields || [];
+    const hasTag = Array.isArray(contact.tags) &&
+      contact.tags.some(t => normLower(t) === "welcome offer opt-in");
 
+    const cf = contact.customField || contact.customFields || [];
     let welcomeOfferAccess = null;
     let offerBooked = null;
     let expiryDate = null;
 
     console.log("🔍 VALIDATION CHECKS");
 
-    // MAIN LOOP: log each field and map to boolean
     for (const f of cf) {
       if (!f) continue;
-
       const val = normLower(f.value);
 
-      // Match by ID first
       if (process.env.GHL_FIELD_WELCOME_ID && f.id === process.env.GHL_FIELD_WELCOME_ID) {
         welcomeOfferAccess = valueIsYes(f.value);
         console.log(`• Custom Field [${f.id}] => Welcome Offer Access: ${f.value}`);
@@ -68,7 +78,7 @@ export default async function validateOffer(req, res) {
       }
     }
 
-    // BOOLEAN fallback logic (keeps your original validation logic)
+    // Boolean fallback logic
     const booleanFields = cf
       .map(f => ({ f, v: normLower(f.value) }))
       .filter(x => ["yes","no","true","false","1","0",""].includes(x.v));
@@ -81,18 +91,15 @@ export default async function validateOffer(req, res) {
       if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].f.value);
     }
 
-    // Defaults
     welcomeOfferAccess ??= false;
     offerBooked ??= false;
 
     let isExpired = false;
-    if (expiryDate) {
-      isExpired = new Date(expiryDate) < new Date();
-    }
+    if (expiryDate) isExpired = new Date(expiryDate) < new Date();
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // Only preserve allowed query params
+    // Preserve allowed query params
     const allowed = ["contactId","utm_source","utm_medium","utm_campaign","source"];
     const qs = Object.entries(req.query)
       .filter(([k]) => allowed.includes(k))
@@ -120,6 +127,9 @@ export default async function validateOffer(req, res) {
 
   } catch (err) {
     console.error("🔥 Error in validateOffer:", err);
-    return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    return res.redirect(
+      302,
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    );
   }
-}
+};
