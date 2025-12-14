@@ -8,90 +8,42 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #faf7f5;
-      font-family: system-ui, sans-serif;
-      color: #333;
-      margin: 0;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #ddd;
-      border-top: 4px solid #c49a6c;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 10px;
-    }
+    body { display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:#faf7f5; font-family:system-ui,sans-serif; color:#333; margin:0; }
+    .spinner { width:40px; height:40px; border:4px solid #ddd; border-top:4px solid #c49a6c; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:10px; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="spinner"></div>
   <p>Verifying your offer...</p>
-
   <script>
     (function() {
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
-      let utmSource = params.get("utm_source");
-
-      // Fallback based on path
-      if (!utmSource) {
-        const path = window.location.pathname.toLowerCase();
-        if (path.includes("/email")) utmSource = "email";
-        else if (path.includes("/sms")) utmSource = "sms";
-      }
-
+      const utms = ["utm_source","utm_medium","utm_campaign","source"].reduce((acc,key)=>{
+        const v=params.get(key); if(v) acc[key]=v; return acc;
+      },{});
       console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 Detected utm_source:", utmSource);
+      console.log("💡 UTM values detected:", utms);
 
-      if (!contactId) {
-        return window.location.href = 
-          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+      if(!contactId){
+        window.location.href="https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+        return;
       }
 
-      // Cache-buster to avoid UTM stripping
-      if (!params.has("cb")) {
-        params.set("cb", Date.now());
+      if(!params.has("cb")){
+        params.set("cb",Date.now());
         window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
       }
 
-      // Build clean API params (contactId + utm_*)
       const apiParams = new URLSearchParams();
       apiParams.set("contactId", contactId);
-      ["utm_source", "utm_medium", "utm_campaign", "source"].forEach(k => {
-        if (params.get(k)) apiParams.set(k, params.get(k));
-      });
+      Object.entries(utms).forEach(([k,v])=>apiParams.set(k,v));
 
-      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
+      const apiUrl=`/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
-      // Use window.location.href to preserve UTMs in the address bar
-      setTimeout(() => {
-        window.location.href = apiUrl;
-      }, 2000);
-
-      // Optional: strict booking button check
-      document.querySelectorAll(".book-now-button").forEach(btn => {
-        btn.addEventListener("click", async (e) => {
-          try {
-            const res = await fetch(apiUrl, { method: "HEAD", redirect: "manual" });
-            if (res.url && res.url.includes("invalid")) {
-              e.preventDefault();
-              window.location.href = res.url;
-            }
-          } catch (err) {
-            console.error("HEAD check failed", err);
-          }
-        });
-      });
-
+      window.location.href=apiUrl;
     })();
   </script>
 </body>
