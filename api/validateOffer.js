@@ -1,9 +1,14 @@
 // Native fetch is available in Vercel Node 18+
-// No node-fetch import needed
 
 const norm = v => (v == null ? "" : String(v).trim());
-const normLower = v => norm(v).toLowerCase();
-const valueIsYes = v => ["yes","true","1"].includes(normLower(v));
+const normLower = v => norm(v).toLowerCase());
+
+// Strict boolean mapping
+const parseBooleanField = (v, positiveValue = "yes") => {
+  if (v === true || v === "true" || v === "Yes" || v === "yes" || v === "1") return true;
+  if (v === false || v === "false" || v === "No" || v === "no" || v === "0") return false;
+  return null; // undefined / empty
+};
 
 module.exports = async function validateOffer(req, res) {
   try {
@@ -29,9 +34,7 @@ module.exports = async function validateOffer(req, res) {
 
     let contact = null;
     for (const url of endpoints) {
-      const resApi = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey}` }
-      });
+      const resApi = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
       const raw = await resApi.json().catch(() => ({}));
       const c = raw.contact || raw;
       if (resApi.ok && c && c.id) {
@@ -60,15 +63,15 @@ module.exports = async function validateOffer(req, res) {
 
     for (const f of cf) {
       if (!f) continue;
-      const val = normLower(f.value);
 
+      // Map by IDs first
       if (process.env.GHL_FIELD_WELCOME_ID && f.id === process.env.GHL_FIELD_WELCOME_ID) {
-        welcomeOfferAccess = valueIsYes(f.value);
+        welcomeOfferAccess = parseBooleanField(f.value, "yes");
         console.log(`• Custom Field [${f.id}] => Welcome Offer Access: ${f.value}`);
       }
 
       if (process.env.GHL_FIELD_OFFERBOOKED_ID && f.id === process.env.GHL_FIELD_OFFERBOOKED_ID) {
-        offerBooked = valueIsYes(f.value);
+        offerBooked = parseBooleanField(f.value, "yes");
         console.log(`• Custom Field [${f.id}] => Offer Booked: ${f.value}`);
       }
 
@@ -78,28 +81,15 @@ module.exports = async function validateOffer(req, res) {
       }
     }
 
-    // Boolean fallback logic
-    const booleanFields = cf
-      .map(f => ({ f, v: normLower(f.value) }))
-      .filter(x => ["yes","no","true","false","1","0",""].includes(x.v));
-
-    if (booleanFields.length === 1) {
-      if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].f.value);
-      if (offerBooked === null) offerBooked = false;
-    } else if (booleanFields.length >= 2) {
-      if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].f.value);
-      if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].f.value);
-    }
-
-    welcomeOfferAccess ??= false;
-    offerBooked ??= false;
+    // Fallback for any missing boolean fields
+    welcomeOfferAccess ??= false; // default: no access unless explicitly yes
+    offerBooked ??= false;        // default: not booked unless explicitly yes
 
     let isExpired = false;
     if (expiryDate) isExpired = new Date(expiryDate) < new Date();
 
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
-    // Preserve allowed query params
     const allowed = ["contactId","utm_source","utm_medium","utm_campaign","source"];
     const qs = Object.entries(req.query)
       .filter(([k]) => allowed.includes(k))
@@ -118,7 +108,6 @@ module.exports = async function validateOffer(req, res) {
     console.log("❌ FINAL RESULT:", isValid ? "VALID OFFER" : "INVALID OFFER");
     console.log("➡️ Redirect:", redirectTo);
 
-    // Cache headers
     res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma","no-cache");
     res.setHeader("Expires","0");
