@@ -49,42 +49,31 @@
 
       const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","source"];
 
-      // 1️⃣ STORE UTMs ON FIRST LOAD
+      // store UTMs in sessionStorage
       if (!params.has("cb")) {
         const utms = {};
-        UTM_KEYS.forEach(k => {
-          if (params.get(k)) utms[k] = params.get(k);
-        });
-
+        UTM_KEYS.forEach(k => { if (params.get(k)) utms[k] = params.get(k); });
         sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
-
         params.set("cb", Date.now());
         window.location.replace(`${window.location.pathname}?${params.toString()}`);
         return;
       }
 
-      // 2️⃣ RESTORE UTMs AFTER RELOAD
+      // restore UTMs
       let storedUTMs = {};
-      try {
-        storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}");
-      } catch {}
+      try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
 
       console.log("💡 Restored UTMs from sessionStorage:", storedUTMs);
 
-      // 3️⃣ BUILD API URL
+      // Build API URL
       const apiParams = new URLSearchParams();
       apiParams.set("contactId", contactId);
-
-      Object.entries(storedUTMs).forEach(([k, v]) => {
-        if (v) apiParams.set(k, v);
-      });
+      Object.entries(storedUTMs).forEach(([k, v]) => { if (v) apiParams.set(k, v); });
 
       const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
-      setTimeout(() => {
-        window.location.replace(apiUrl);
-      }, 1500);
+      setTimeout(() => { window.location.replace(apiUrl); }, 1500);
     })();
   </script>
 </body>
