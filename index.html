@@ -37,45 +37,45 @@
   <div class="spinner"></div>
   <p>Verifying your offer...</p>
 
-  <script>
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("contactId");
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const contactId = params.get("contactId");
 
-      if (!contactId) {
-        window.location.href = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
-        return;
-      }
+  if (!contactId) {
+    window.location.href = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+    return;
+  }
 
-      const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","source"];
+  const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","source"];
 
-      // Store UTMs on first load
-      if (!params.has("cb")) {
-        const utms = {};
-        UTM_KEYS.forEach(k => { if(params.get(k)) utms[k] = params.get(k); });
-        sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
+  // Store UTMs on first load
+  if (!params.has("cb")) {
+    const utms = {};
+    UTM_KEYS.forEach(k => { if(params.get(k)) utms[k] = params.get(k); });
+    sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
 
-        params.set("cb", Date.now());
-        window.location.replace(`${window.location.pathname}?${params.toString()}`);
-        return;
-      }
+    params.set("cb", Date.now());
+    window.location.replace(`${window.location.pathname}?${params.toString()}`);
+    return;
+  }
 
-      // Restore UTMs after reload
-      let storedUTMs = {};
-      try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
+  // Restore UTMs after reload
+  let storedUTMs = {};
+  try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
 
-      console.log("💡 Restored UTMs from sessionStorage:", storedUTMs);
+  console.log("💡 Restored UTMs from sessionStorage:", storedUTMs);
 
-      // Build API URL
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      Object.entries(storedUTMs).forEach(([k, v]) => { if(v) apiParams.set(k, v); });
+  // Build API URL
+  const apiParams = new URLSearchParams();
+  apiParams.set("contactId", contactId);
+  UTM_KEYS.forEach(k => { if(storedUTMs[k]) apiParams.set(k, storedUTMs[k]); });
 
-      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
-      console.log("🔄 Redirecting to API route:", apiUrl);
+  const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
+  console.log("🔄 Redirecting to API route:", apiUrl);
 
-      setTimeout(() => { window.location.replace(apiUrl); }, 1500);
-    })();
-  </script>
+  setTimeout(() => { window.location.replace(apiUrl); }, 1500);
+})();
+</script>
 </body>
 </html>
