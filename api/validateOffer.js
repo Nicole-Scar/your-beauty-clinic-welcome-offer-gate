@@ -1,7 +1,7 @@
 // Native fetch is available in Vercel Node 18+
 
 const norm = v => (v == null ? "" : String(v).trim());
-const normLower = v => norm(v).toLowerCase());
+const normLower = v => norm(v).toLowerCase();
 
 // Strict boolean mapping
 const parseBooleanField = (v, positiveValue = "yes") => {
@@ -9,6 +9,7 @@ const parseBooleanField = (v, positiveValue = "yes") => {
   if (v === false || v === "false" || v === "No" || v === "no" || v === "0") return false;
   return null; // undefined / empty
 };
+
 
 module.exports = async function validateOffer(req, res) {
   try {
