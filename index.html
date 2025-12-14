@@ -61,7 +61,7 @@
     sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
 
     params.set("cb", Date.now());
-    window.location.replace(`${window.location.pathname}?${params.toString()}`);
+    window.location.replace(`${window.location.origin}${window.location.pathname}?${params.toString()}`);
     return;
   }
 
