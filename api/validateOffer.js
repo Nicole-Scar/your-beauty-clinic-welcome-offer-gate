@@ -9,7 +9,6 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    // Use query parameters directly (safer for serverless)
     const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
     if (!contactId) {
@@ -57,7 +56,7 @@ export default async function validateOffer(req, res) {
 
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
 
-    const valueIsYes = (v) => ["yes", "true", "1"].includes(normLower(v));
+    const valueIsYes = (v) => ["yes","true","1"].includes(normLower(v));
 
     let welcomeOfferAccess = null;
     let offerBooked = null;

@@ -49,17 +49,18 @@
 
       const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","source"];
 
-      // store UTMs in sessionStorage
+      // Store UTMs on first load
       if (!params.has("cb")) {
         const utms = {};
-        UTM_KEYS.forEach(k => { if (params.get(k)) utms[k] = params.get(k); });
+        UTM_KEYS.forEach(k => { if(params.get(k)) utms[k] = params.get(k); });
         sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
+
         params.set("cb", Date.now());
         window.location.replace(`${window.location.pathname}?${params.toString()}`);
         return;
       }
 
-      // restore UTMs
+      // Restore UTMs after reload
       let storedUTMs = {};
       try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
 
@@ -68,7 +69,7 @@
       // Build API URL
       const apiParams = new URLSearchParams();
       apiParams.set("contactId", contactId);
-      Object.entries(storedUTMs).forEach(([k, v]) => { if (v) apiParams.set(k, v); });
+      Object.entries(storedUTMs).forEach(([k, v]) => { if(v) apiParams.set(k, v); });
 
       const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
