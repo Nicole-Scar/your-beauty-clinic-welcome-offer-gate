@@ -7,7 +7,7 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    const fetch = (await import('node-fetch')).default; // dynamic import for Vercel ESM
+    const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
 
     const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
@@ -58,18 +58,20 @@ export default async function validateOffer(req, res) {
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
-    // === VALIDATION LOGIC (DO NOT CHANGE) ===
     const valueIsYes = (v) => {
       const s = normLower(v);
       return s === "yes" || s === "true" || s === "1";
     };
+
     const valueIsNo = (v) => {
       const s = normLower(v);
       return s === "no" || s === "false" || s === "0" || s === "";
     };
+
     let welcomeOfferAccess = null;
     let offerBooked = null;
 
+    // === VALIDATION LOGIC REMAINS EXACTLY AS LAST CORRECT SCRIPT ===
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
@@ -95,26 +97,22 @@ export default async function validateOffer(req, res) {
       }
     }
 
-    if (welcomeOfferAccess === null) {
-      console.log("⚠️ Could not determine welcomeOfferAccess — default false");
-      welcomeOfferAccess = false;
-    }
-    if (offerBooked === null) {
-      console.log("⚠️ Could not determine offerBooked — default false");
-      offerBooked = false;
-    }
+    if (welcomeOfferAccess === null) welcomeOfferAccess = false;
+    if (offerBooked === null) offerBooked = false;
+
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
-    // === END VALIDATION LOGIC ===
 
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
     console.log("➡️ isValid:", isValid);
 
-    // Forward UTMs
+    // === UTM FORWARDING & LOGGING FIX ===
     const qs = new URLSearchParams({ contactId });
     if (utm_source) qs.set("utm_source", utm_source);
     if (utm_medium) qs.set("utm_medium", utm_medium);
     if (utm_campaign) qs.set("utm_campaign", utm_campaign);
     if (source) qs.set("source", source);
+
+    console.log("💡 Forwarded UTMs:", { utm_source, utm_medium, utm_campaign, source });
 
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
