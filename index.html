@@ -4,32 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Validating your offer...</title>
-
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-
   <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #faf7f5;
-      font-family: system-ui, sans-serif;
-      color: #333;
-      margin: 0;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #ddd;
-      border-top: 4px solid #c49a6c;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 10px;
-    }
+    body { display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:#faf7f5; font-family:system-ui,sans-serif; color:#333; margin:0; }
+    .spinner { width:40px; height:40px; border:4px solid #ddd; border-top:4px solid #c49a6c; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:10px; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
@@ -37,45 +17,41 @@
   <div class="spinner"></div>
   <p>Verifying your offer...</p>
 
-  <script>
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get("contactId");
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const contactId = params.get("contactId");
+  if (!contactId) return window.location.href = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
-      if (!contactId) {
-        window.location.href = "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
-        return;
-      }
+  const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","source"];
+  // Save UTMs in sessionStorage if not already saved
+  if (!sessionStorage.getItem("welcomeOfferUTMs")) {
+    const utms = {};
+    UTM_KEYS.forEach(k => { if(params.get(k)) utms[k] = params.get(k); });
+    sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
+  }
 
-      const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","source"];
+  // Add cache-buster if not present
+  if (!params.has("cb")) {
+    params.set("cb", Date.now());
+    window.location.replace(`${window.location.pathname}?${params.toString()}`);
+    return;
+  }
 
-      // Store UTMs on first load
-      if (!params.has("cb")) {
-        const utms = {};
-        UTM_KEYS.forEach(k => { if(params.get(k)) utms[k] = params.get(k); });
-        sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
+  // Retrieve stored UTMs
+  let storedUTMs = {};
+  try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
 
-        params.set("cb", Date.now());
-        window.location.replace(`${window.location.pathname}?${params.toString()}`);
-        return;
-      }
+  // Build API URL with contactId + UTMs
+  const apiParams = new URLSearchParams({ contactId });
+  UTM_KEYS.forEach(k => { if (storedUTMs[k]) apiParams.set(k, storedUTMs[k]); });
 
-      // Restore UTMs after reload
-      let storedUTMs = {};
-      try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
+  const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
+  console.log("🔄 Redirecting to API route:", apiUrl);
 
-      console.log("💡 Restored UTMs from sessionStorage:", storedUTMs);
-
-      // Build API URL
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      Object.entries(storedUTMs).forEach(([k, v]) => { if(v) apiParams.set(k, v); });
-
-      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
-      console.log("🔄 Redirecting to API route:", apiUrl);
-
-      setTimeout(() => { window.location.replace(apiUrl); }, 1500);
-    })();
-  </script>
+  // Delay slightly for spinner effect
+  setTimeout(() => { window.location.replace(apiUrl); }, 500);
+})();
+</script>
 </body>
 </html>
