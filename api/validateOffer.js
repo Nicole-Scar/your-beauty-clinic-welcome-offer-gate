@@ -33,14 +33,17 @@ export default async function validateOffer(req, res) {
     if (!contact) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
 
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
+
     let welcomeOfferAccess = null;
     let offerBooked = null;
     let expiryDate = null;
 
+    const valueToLower = v => (v === null || v === undefined ? "" : String(v)).toLowerCase();
+
     cf.forEach(f => {
       if (!f) return;
-      const name = (f.name || f.label || "").toLowerCase();
-      const value = (f.value || "").toLowerCase();
+      const name = valueToLower(f.name || f.label);
+      const value = valueToLower(f.value);
 
       if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = ["yes","true","1"].includes(value);
       if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = ["yes","true","1"].includes(value);
