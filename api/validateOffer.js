@@ -1,103 +1,106 @@
-function norm(v) {
-  return v === null || v === undefined ? "" : String(v).trim();
-}
-function normLower(v) {
-  return norm(v).toLowerCase();
-}
-const valueIsYes = v => ["yes", "true", "1"].includes(normLower(v));
 
-export default async function validateOffer(req, res) {
-  try {
-    const url = new URL(req.url, `https://${req.headers.host}`);
-    const contactId = url.searchParams.get("contactId");
-    const utmSource = url.searchParams.get("utm_source");
+export default async function handler(req, res) {
+  const { contactId, utm_source } = req.query;
 
-    console.log("🕹️ validateOffer | contactId:", contactId);
-    console.log("📝 query params:", Object.fromEntries(url.searchParams));
-    console.log("💡 utm_source:", utmSource);
+  console.log("🕹️ validateOffer | contactId:", contactId);
+  console.log("📝 query params:", req.query);
+  console.log("💡 utm_source:", utm_source || null);
 
-    if (!contactId) {
-      return res.redirect(
-        302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-      );
-    }
-
-    const apiKey = process.env.GHL_API_KEY;
-    const locationId = process.env.GHL_LOCATION_ID;
-    const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID;
-    const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID;
-
-    const endpoints = [
-      `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
-      `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${contactId}`
-    ];
-
-    let contact = null;
-
-    for (const endpoint of endpoints) {
-      const r = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      const data = await r.json().catch(() => ({}));
-      const c = data.contact || data;
-
-      if (r.ok && c?.id) {
-        contact = c;
-        break;
-      }
-    }
-
-    if (!contact) {
-      return res.redirect(
-        302,
-        "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-      );
-    }
-
-    const hasTag =
-      Array.isArray(contact.tags) &&
-      contact.tags.some(t => normLower(t) === "welcome offer opt-in");
-
-    const cf = contact.customField || contact.customFields || [];
-    let welcomeOfferAccess = false;
-    let offerBooked = false;
-    let expiryDate = null;
-
-    for (const f of cf) {
-      if (!f) continue;
-      if (f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
-      if (f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
-      if (normLower(f.name) === "welcome offer expiry") expiryDate = f.value;
-    }
-
-    let isExpired = false;
-    if (expiryDate && new Date(expiryDate) < new Date()) isExpired = true;
-
-    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
-
-    const qs = new URLSearchParams();
-    qs.set("contactId", contactId);
-    if (utmSource) qs.set("utm_source", utmSource);
-
-    const redirectTo = isValid
-      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs}`
-      : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
-
-    console.log("➡️ Redirect:", redirectTo);
-
-    res.setHeader("Cache-Control", "no-store");
-    return res.redirect(302, redirectTo);
-
-  } catch (err) {
-    console.error("🔥 validateOffer error:", err);
+  if (!contactId) {
+    console.log("❌ FAIL: Missing contactId");
     return res.redirect(
       302,
       "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
     );
   }
+
+  // --- Fetch contact from GHL ---
+  let contact;
+  try {
+    const response = await fetch(
+      `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.GHL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const data = await response.json();
+    contact = data.contact;
+  } catch (err) {
+    console.error("🔥 ERROR fetching contact:", err);
+    return res.status(500).send("Failed to fetch contact");
+  }
+
+  if (!contact) {
+    console.log("❌ FAIL: Contact not found in GHL");
+    return res.redirect(
+      302,
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    );
+  }
+
+  // --- Extract values safely ---
+  const tags = contact.tags || [];
+  const customFields = contact.customField || {};
+
+  const hasOptInTag = tags.includes("welcome offer opt-in");
+  const hasAccess =
+    customFields["welcome_offer_access"] === "yes";
+  const hasBooked =
+    customFields["offer_booked"] === "yes";
+  const expiryDate = customFields["welcome_offer_expiry"];
+
+  let isExpired = false;
+  if (expiryDate) {
+    const expiry = new Date(expiryDate);
+    isExpired = expiry < new Date();
+  }
+
+  // --- Log each rule clearly ---
+  console.log("🔍 VALIDATION CHECKS");
+  console.log("• Has opt-in tag:", hasOptInTag);
+  console.log("• Welcome offer access:", customFields["welcome_offer_access"]);
+  console.log("• Offer booked:", customFields["offer_booked"]);
+  console.log("• Expiry date:", expiryDate || "none");
+  console.log("• Is expired:", isExpired);
+
+  // --- Final decision ---
+  const isValid =
+    hasOptInTag &&
+    hasAccess &&
+    !hasBooked &&
+    !isExpired;
+
+  if (!isValid) {
+    console.log("❌ FINAL RESULT: INVALID OFFER");
+    console.log("❌ Failure reasons:", {
+      missingOptInTag: !hasOptInTag,
+      accessNotGranted: !hasAccess,
+      alreadyBooked: hasBooked,
+      expired: isExpired,
+    });
+
+    return res.redirect(
+      302,
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    );
+  }
+
+  console.log("✅ FINAL RESULT: VALID OFFER");
+
+  // --- Build final redirect URL ---
+  const finalUrl = new URL(
+    "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477"
+  );
+
+  finalUrl.searchParams.set("contactId", contactId);
+  if (utm_source) finalUrl.searchParams.set("utm_source", utm_source);
+
+  console.log("➡️ Redirect:", finalUrl.toString());
+
+  return res.redirect(302, finalUrl.toString());
 }
+
