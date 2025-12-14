@@ -56,7 +56,7 @@ export default async function validateOffer(req, res) {
     }
 
     const hasTag = Array.isArray(contact.tags) &&
-      contact.tags.some(tag => normLower(tag) === "sent welcome offer tracking link");
+      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
     console.log("🏷️ Contact tags:", contact.tags);
     console.log("✅ hasTag:", hasTag);
 
