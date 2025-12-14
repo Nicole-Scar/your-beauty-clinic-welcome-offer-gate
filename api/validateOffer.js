@@ -11,8 +11,6 @@ export default async function validateOffer(req, res) {
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
-    const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
-    const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
 
     // Fetch contact
     const endpoints = [
@@ -31,6 +29,7 @@ export default async function validateOffer(req, res) {
 
     if (!contact) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
 
+    // ----- VALIDATION LOGIC -----
     const tags = Array.isArray(contact.tags) ? contact.tags.map(t => String(t).toLowerCase()) : [];
     const hasTag = tags.includes("welcome offer opt-in");
 
@@ -40,26 +39,25 @@ export default async function validateOffer(req, res) {
     let offerBooked = false;
     let expiryDate = null;
 
+    // Loop through all fields explicitly
     cf.forEach(f => {
       if (!f) return;
       const name = String(f.name || f.label || "").toLowerCase();
       const value = String(f.value || "").toLowerCase();
 
-      // Explicit rules
-      if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = ["yes","true","1"].includes(value);
-      if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = ["yes","true","1"].includes(value);
+      // Check welcomeOfferAccess
+      if (name.includes("welcome") && (value === "yes" || value === "true" || value === "1")) welcomeOfferAccess = true;
 
-      // Fallback by name
-      if (!welcomeOfferAccess && name.includes("welcome")) welcomeOfferAccess = ["yes","true","1"].includes(value);
-      if (!offerBooked && name.includes("book")) offerBooked = ["yes","true","1"].includes(value);
+      // Check offerBooked
+      if (name.includes("book") && (value === "yes" || value === "true" || value === "1")) offerBooked = true;
 
-      if (name === "welcome offer expiry") expiryDate = f.value;
+      // Check expiry
+      if (name.includes("expiry")) expiryDate = f.value;
     });
 
     const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
 
-    // VALIDATION LOGIC
-    // Access allowed ONLY if: tag exists, welcomeOfferAccess = yes, offerBooked = no, not expired
+    // Final eligibility: tag + welcomeOfferAccess = yes + offerBooked = no + not expired
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
 
     const qs = new URLSearchParams({ contactId });
@@ -72,6 +70,8 @@ export default async function validateOffer(req, res) {
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
+    console.log("🎯 Fields checked:");
+    cf.forEach(f => console.log("   ", f.name || f.label, "=", f.value));
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| isExpired:", isExpired, "| hasTag:", hasTag);
     console.log("💡 Forwarded UTMs:", {utm_source, utm_medium, utm_campaign, source});
     console.log("➡️ Redirecting to:", redirectTo);
