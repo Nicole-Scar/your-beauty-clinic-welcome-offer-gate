@@ -1,10 +1,7 @@
-import fetch from 'node-fetch';
-
-function norm(v) { return (v === null || v === undefined) ? '' : String(v).trim(); }
-function normLower(v) { return norm(v).toLowerCase(); }
-
 export default async function validateOffer(req, res) {
   try {
+    const fetch = (await import('node-fetch')).default; // dynamic import
+
     const { contactId, utm_source = '', utm_medium = '', utm_campaign = '', source = '' } = req.query || {};
 
     if (!contactId) {
@@ -43,50 +40,64 @@ export default async function validateOffer(req, res) {
     }
 
     const hasTag = Array.isArray(contact.tags) &&
-      contact.tags.some(tag => normLower(tag) === "sent welcome offer tracking link");
+      contact.tags.some(tag => (tag || '').toLowerCase() === "welcome offer opt-in");
     console.log("🏷️ Contact tags:", contact.tags);
     console.log("✅ hasTag:", hasTag);
 
     const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
-    // --- VALIDATION SNIPPET ---
-    const valueIsYes = (v) => ["yes","true","1"].includes(normLower(v));
-    const valueIsNo = (v) => ["no","false","0",""].includes(normLower(v));
+    // --- VALIDATION ---
+    const valueIsYes = v => ["yes","true","1"].includes((v||'').toString().toLowerCase());
+    const valueIsNo = v => ["no","false","0",""].includes((v||'').toString().toLowerCase());
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
+    let expiryDate = null;
 
-    // 1️⃣ Map by IDs
+    // 1️⃣ Map by env field IDs
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
         if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
         if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
       }
+      console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    // 2️⃣ Infer by name
+    // 2️⃣ Infer by field name if null
     if (welcomeOfferAccess === null || offerBooked === null) {
       for (const f of cf) {
         if (!f) continue;
-        const name = normLower(f.name || f.label || "");
+        const name = (f.name || f.label || '').toLowerCase();
         const val = f.value;
-        if (welcomeOfferAccess === null && name.includes("welcome")) welcomeOfferAccess = valueIsYes(val);
-        if (offerBooked === null && name.includes("book")) offerBooked = valueIsYes(val);
+
+        if (welcomeOfferAccess === null && name.includes("welcome")) {
+          welcomeOfferAccess = valueIsYes(val);
+          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+        }
+
+        if (offerBooked === null && name.includes("book")) {
+          offerBooked = valueIsYes(val);
+          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
+        }
+
+        if (name.includes("expiry")) expiryDate = val;
       }
     }
 
-    // 3️⃣ Fallback boolean mapping
+    // 3️⃣ Defaults
     if (welcomeOfferAccess === null) welcomeOfferAccess = false;
     if (offerBooked === null) offerBooked = false;
 
-    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
+    const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
 
-    const isValid = hasTag && welcomeOfferAccess && !offerBooked;
+    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked, "| isExpired:", isExpired, "| hasTag:", hasTag);
+
+    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
     console.log("➡️ isValid:", isValid);
 
-    // --- Redirect URL ---
+    // --- Build redirect with UTMs ---
     const qs = new URLSearchParams({ contactId });
     if (utm_source) qs.set("utm_source", utm_source);
     if (utm_medium) qs.set("utm_medium", utm_medium);
@@ -102,6 +113,7 @@ export default async function validateOffer(req, res) {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
+
     return res.redirect(302, redirectTo);
 
   } catch (err) {
