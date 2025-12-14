@@ -39,17 +39,6 @@
   (function() {
     const params = new URLSearchParams(window.location.search);
     const contactId = params.get("contactId");
-    let utmSource = params.get("utm_source");
-
-    // Fallback based on path
-    if (!utmSource) {
-      const path = window.location.pathname.toLowerCase();
-      if (path.includes("/email")) utmSource = "email";
-      else if (path.includes("/sms")) utmSource = "sms";
-    }
-
-    console.log("🪶 ContactId detected:", contactId);
-    console.log("💡 Detected utm_source:", utmSource);
 
     if (!contactId) {
       return window.location.replace(
@@ -57,27 +46,22 @@
       );
     }
 
-    // Always add a cache-buster if missing to prevent browser caching stripping UTMs
-    if (!params.has("cb")) {
-      params.set("cb", Date.now());
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
-      console.log("🔄 Adding cache-buster, redirecting to:", newUrl);
-      window.location.replace(newUrl);
-      return;
-    }
-
-    // Build clean API params (only contactId + utm_*)
+    // --- Build API URL preserving all UTMs + cache-buster ---
     const apiParams = new URLSearchParams();
     apiParams.set("contactId", contactId);
-    if (utmSource) apiParams.set("utm_source", utmSource);
-    ["utm_medium", "utm_campaign", "source"].forEach(k => {
-      if (params.get(k)) apiParams.set(k, params.get(k));
+
+    ["utm_source","utm_medium","utm_campaign","source"].forEach(k => {
+      const val = params.get(k);
+      if (val) apiParams.set(k, val);
     });
+
+    // Add cache-buster to prevent browser caching from stripping UTMs
+    if (!params.has("cb")) apiParams.set("cb", Date.now());
 
     const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
     console.log("🔄 Redirecting to API route:", apiUrl);
 
-    // Delay to show spinner
+    // Show spinner for at least 1.5s
     setTimeout(() => window.location.replace(apiUrl), 1500);
 
     // Optional: strict booking button check
