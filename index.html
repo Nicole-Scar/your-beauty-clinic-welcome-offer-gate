@@ -40,29 +40,38 @@
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
 
-      // Forward UTMs
-      const utms = ["utm_source","utm_medium","utm_campaign","source"];
-      const apiParams = new URLSearchParams();
-      apiParams.set("contactId", contactId);
-      utms.forEach(k => {
-        if (params.get(k)) apiParams.set(k, params.get(k));
-      });
+      // Detect UTM parameters
+      const utmKeys = ["utm_source","utm_medium","utm_campaign","source"];
+      const utms = {};
+      utmKeys.forEach(k => { if(params.get(k)) utms[k] = params.get(k); });
 
       console.log("🪶 ContactId detected:", contactId);
-      console.log("💡 Forwarding UTMs:", Object.fromEntries(apiParams));
+      console.log("💡 Forwarded UTMs:", utms);
 
-      if (!contactId) {
-        return window.location.replace(
-          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-        );
+      if(!contactId) {
+        return window.location.href =
+          "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
       }
+
+      // Cache-buster to prevent UTM stripping
+      if(!params.has("cb")) {
+        params.set("cb", Date.now());
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.location.href = newUrl;
+        return;
+      }
+
+      // Build API URL with contactId + all UTMs
+      const apiParams = new URLSearchParams();
+      apiParams.set("contactId", contactId);
+      Object.entries(utms).forEach(([k,v]) => { apiParams.set(k,v); });
 
       const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
 
       setTimeout(() => {
-        window.location.replace(apiUrl);
-      }, 500);
+        window.location.href = apiUrl;
+      }, 2000);
     })();
   </script>
 </body>
