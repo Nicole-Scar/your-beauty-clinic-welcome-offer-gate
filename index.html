@@ -40,26 +40,26 @@
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get("contactId");
 
+      // Forward UTMs
+      const utms = ["utm_source","utm_medium","utm_campaign","source"];
+      const apiParams = new URLSearchParams();
+      apiParams.set("contactId", contactId);
+      utms.forEach(k => {
+        if (params.get(k)) apiParams.set(k, params.get(k));
+      });
+
+      console.log("🪶 ContactId detected:", contactId);
+      console.log("💡 Forwarding UTMs:", Object.fromEntries(apiParams));
+
       if (!contactId) {
-        console.error("❌ No contactId detected in URL");
         return window.location.replace(
           "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
         );
       }
 
-      // Cache-buster to prevent browser caching stripping UTMs
-      if (!params.has("cb")) {
-        params.set("cb", Date.now());
-        window.location.replace(`${window.location.pathname}?${params.toString()}`);
-        return;
-      }
-
-      // Build API URL forwarding all query params
-      const apiUrl = `/api/validateOffer?${params.toString()}`;
+      const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
       console.log("🔄 Redirecting to API route:", apiUrl);
-      console.log("📝 Query params:", Object.fromEntries(params));
 
-      // Redirect to API after short delay
       setTimeout(() => {
         window.location.replace(apiUrl);
       }, 500);
