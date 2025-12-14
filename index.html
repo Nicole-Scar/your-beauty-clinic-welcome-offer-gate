@@ -28,67 +28,16 @@
       border-top: 4px solid #c49a6c;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 
 <body>
   <div class="spinner"></div>
-  <p>Verifying your offer...</p>
-
-<script>
-(function () {
-  const params = new URLSearchParams(window.location.search);
-  const contactId = params.get("contactId");
-
-  if (!contactId) {
-    window.location.href =
-      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
-    return;
-  }
-
-  const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "source"];
-
-  // 1️⃣ STORE UTMs ON FIRST LOAD
-  if (!params.has("cb")) {
-    const utms = {};
-    UTM_KEYS.forEach(k => {
-      if (params.get(k)) utms[k] = params.get(k);
-    });
-
-    sessionStorage.setItem("welcomeOfferUTMs", JSON.stringify(utms));
-
-    params.set("cb", Date.now());
-    window.location.replace(`${window.location.origin}${window.location.pathname}?${params.toString()}`);
-    return;
-  }
-
-  // 2️⃣ RESTORE UTMs AFTER RELOAD
-  let storedUTMs = {};
-  try {
-    storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}");
-  } catch {}
-
-  console.log("💡 Restored UTMs from sessionStorage:", storedUTMs);
-
-  // 3️⃣ BUILD API URL
-  const apiParams = new URLSearchParams();
-  apiParams.set("contactId", contactId);
-
-  Object.entries(storedUTMs).forEach(([k, v]) => {
-    if (v) apiParams.set(k, v);
-  });
-
-  const apiUrl = `/api/validateOffer?${apiParams.toString()}`;
-  console.log("🔄 Redirecting to API route:", apiUrl);
-
-  setTimeout(() => {
-    window.location.replace(apiUrl);
-  }, 1500);
-})();
-</script>
-
+  <p>Verifying your offer…</p>
 </body>
 </html>
