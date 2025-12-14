@@ -1,7 +1,7 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch"; // ESM import, works with Vercel
 
 function norm(v) {
-  return (v === null || v === undefined) ? '' : String(v).trim();
+  return (v === null || v === undefined) ? "" : String(v).trim();
 }
 function normLower(v) {
   return norm(v).toLowerCase();
@@ -9,7 +9,7 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    // --- Parse full URL to capture UTMs reliably ---
+    // --- Parse full URL to reliably capture UTMs ---
     const url = new URL(req.url, `https://${req.headers.host}`);
     const contactId = url.searchParams.get("contactId");
 
@@ -38,7 +38,6 @@ export default async function validateOffer(req, res) {
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
       });
-
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
@@ -94,9 +93,11 @@ export default async function validateOffer(req, res) {
         const val = f.value;
         if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
           welcomeOfferAccess = valueIsYes(val);
+          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
         }
         if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
           offerBooked = valueIsYes(val);
+          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
         }
       }
     }
@@ -105,7 +106,9 @@ export default async function validateOffer(req, res) {
     if (welcomeOfferAccess === null || offerBooked === null) {
       const booleanFields = cf
         .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
-        .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
+        .filter(x => typeof x.raw.value === "string" && ["yes","no","true","false","1","0",""].includes(x.val));
+
+      console.log("🔎 boolean-like custom fields:", booleanFields.map(b => ({ id: b.id, name: b.name, val: b.val })));
 
       if (booleanFields.length === 1) {
         if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
@@ -127,24 +130,22 @@ export default async function validateOffer(req, res) {
     const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
     console.log("➡️ isValid:", isValid);
 
-    // --- Extract UTMs for redirect ---
-    const utmSource = url.searchParams.get("utm_source");
-    const utmMedium = url.searchParams.get("utm_medium");
-    const utmCampaign = url.searchParams.get("utm_campaign");
-    const source = url.searchParams.get("source");
+    // --- Extract UTMs from query --- 
+    const utmKeys = ["utm_source", "utm_medium", "utm_campaign", "source"];
+    const utms = {};
+    utmKeys.forEach(k => { utms[k] = url.searchParams.get(k); });
 
+    // --- Build redirect URL ---
     const qs = new URLSearchParams();
     qs.set("contactId", contact.id);
-    if(utmSource) qs.set("utm_source", utmSource);
-    if(utmMedium) qs.set("utm_medium", utmMedium);
-    if(utmCampaign) qs.set("utm_campaign", utmCampaign);
-    if(source) qs.set("source", source);
+    Object.entries(utms).forEach(([k,v]) => { if(v) qs.set(k,v); });
 
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
-    console.log("💡 Forwarded UTMs:", { utm_source: utmSource, utm_medium: utmMedium, utm_campaign: utmCampaign, source });
+    // --- Log UTMs at bottom ---
+    console.log("💡 Forwarded UTMs:", utms);
     console.log("➡️ Redirecting to:", redirectTo);
 
     // --- Cache headers ---
