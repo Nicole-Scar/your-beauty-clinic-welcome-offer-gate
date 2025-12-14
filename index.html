@@ -62,7 +62,14 @@
 
       // Restore UTMs after reload
       let storedUTMs = {};
-      try { storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); } catch {}
+     try { 
+      storedUTMs = JSON.parse(sessionStorage.getItem("welcomeOfferUTMs") || "{}"); 
+      // fallback: if sessionStorage empty, take from current URL
+      ["utm_source","utm_medium","utm_campaign","source"].forEach(k => {
+     if(!storedUTMs[k] && params.get(k)) storedUTMs[k] = params.get(k);
+     });
+    } catch {}
+
       console.log("💡 Restored UTMs from sessionStorage:", storedUTMs);
 
       // Build API URL with UTMs
