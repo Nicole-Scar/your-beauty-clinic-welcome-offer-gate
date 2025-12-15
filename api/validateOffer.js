@@ -123,11 +123,14 @@ export default async function validateOffer(req, res) {
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
     console.log("➡️ isValid:", isValid);
 
+    // Forward UTMs if present in the URL or fallback to source
     const qs = new URLSearchParams({ contactId });
-    if (utm_source) qs.set("utm_source", utm_source);
+
+    // Always forward source/email from trigger link
+    qs.set("utm_source", utm_source || source || ""); 
     if (utm_medium) qs.set("utm_medium", utm_medium);
     if (utm_campaign) qs.set("utm_campaign", utm_campaign);
-    if (source) qs.set("source", source);
+
 
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
