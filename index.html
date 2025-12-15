@@ -49,10 +49,9 @@
 
       const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "source"];
 
-      // === FIRST LOAD: persist UTMs safely ===
+      // === FIRST LOAD: persist UTMs safely in sessionStorage ===
       if (!params.has("cb")) {
         const utms = {};
-
         UTM_KEYS.forEach(k => {
           const val = params.get(k);
           if (val) {
@@ -63,6 +62,7 @@
 
         params.set("cb", Date.now());
 
+        // Reload page with contactId, cb, and all UTMs
         const reloadParams = new URLSearchParams({ contactId, cb: params.get("cb") });
         Object.entries(utms).forEach(([k, v]) => reloadParams.set(k, v));
 
@@ -70,10 +70,10 @@
         return;
       }
 
-      // === RESTORE UTMs (guaranteed) ===
+      // === RESTORE UTMs (from sessionStorage, fallback to URL) ===
       const storedUTMs = {};
       UTM_KEYS.forEach(k => {
-        const val = sessionStorage.getItem(`welcomeOfferUTM_${k}`);
+        const val = sessionStorage.getItem(`welcomeOfferUTM_${k}`) || params.get(k);
         if (val) storedUTMs[k] = val;
       });
 
