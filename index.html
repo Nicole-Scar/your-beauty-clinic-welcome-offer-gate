@@ -51,23 +51,21 @@
       const utms = {};
 
       // === FIRST LOAD: persist UTMs safely ===
-      if (!params.has("cb")) {
-        UTM_KEYS.forEach(k => {
-          const val = params.get(k) || sessionStorage.getItem(`welcomeOfferUTM_${k}`);
-          if (val) {
-            utms[k] = val;
-            sessionStorage.setItem(`welcomeOfferUTM_${k}`, val);
-          }
-        });
+     if (!params.has("cb")) {
+     const reloadParams = new URLSearchParams();
+     reloadParams.set("contactId", contactId);
+     reloadParams.set("cb", Date.now());
 
-        params.set("cb", Date.now());
+     // Preserve UTMs
+     UTM_KEYS.forEach(k => {
+     const val = params.get(k);
+     if (val) reloadParams.set(k, val);
+     });
 
-        const reloadParams = new URLSearchParams({ contactId, cb: params.get("cb") });
-        Object.entries(utms).forEach(([k, v]) => reloadParams.set(k, v));
-
-        window.location.replace(`${window.location.pathname}?${reloadParams.toString()}`);
-        return;
-      }
+  // Reload page with preserved UTMs
+  window.location.replace(`${window.location.pathname}?${reloadParams.toString()}`);
+  return;
+}
 
       // === RESTORE UTMs (guaranteed) ===
       const storedUTMs = {};
