@@ -1,9 +1,20 @@
+// entry.js - Minimal redirect logic for your trigger link
 export default function handler(req, res) {
-  const { contactId } = req.query;
-  if (!contactId) return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+  const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
-  // Forward all query parameters to validateOffer
-  const qs = new URLSearchParams(req.query); // <--- dynamically includes utm_source, utm_medium, etc.
+  if (!contactId) {
+    return res.redirect(
+      302,
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    );
+  }
+
+  const qs = new URLSearchParams();
+  qs.set("contactId", contactId);
+  qs.set("utm_source", utm_source || "");
+  qs.set("utm_medium", utm_medium || "");
+  qs.set("utm_campaign", utm_campaign || "");
+  qs.set("source", source || "");
 
   return res.redirect(302, `/api/validateOffer?${qs.toString()}`);
 }
