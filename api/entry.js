@@ -15,8 +15,8 @@ export default function handler(req, res) {
   if (utm_campaign) qs.set("utm_campaign", utm_campaign);
   if (source) qs.set("source", source);
 
-  // 🔹 Absolute URL to validateOffer prevents Vercel stripping
+  // Use **absolute URL** to prevent query param stripping
   const redirectUrl = `https://your-beauty-clinic-welcome-offer-ga.vercel.app/api/validateOffer?${qs.toString()}`;
 
-  return res.redirect(307, redirectUrl); // 307 preserves query params reliably
+  return res.redirect(302, redirectUrl); // 302 is fine if Vercel routing is correct
 }
