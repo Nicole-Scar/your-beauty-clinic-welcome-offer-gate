@@ -90,12 +90,12 @@ export default async function validateOffer(req, res) {
         }
 
 
-      if (!welcomeOfferExpiry && name.toLowerCase().includes("expiry") && val) {
+      if (!welcomeOfferExpiry && val) {
        let parsed = null;
 
       if (typeof val === "string") {
        // Remove ordinal suffixes
-       const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1").trim();
+       const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
 
        // Try ISO split (YYYY-MM-DD)
        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
