@@ -63,6 +63,8 @@ export default async function validateOffer(req, res) {
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
+    let welcomeOfferExpiry = null;
+
 
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
@@ -86,8 +88,19 @@ export default async function validateOffer(req, res) {
           offerBooked = valueIsYes(val);
           console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
         }
-      }
-    }
+
+
+       if (!welcomeOfferExpiry && name.includes("expiry")) {
+       const parsed = new Date(val);
+       if (!isNaN(parsed)) {
+        welcomeOfferExpiry = parsed;
+        console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
+       } else {
+         console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+       }
+     }
+   }
+ }
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
@@ -121,29 +134,8 @@ export default async function validateOffer(req, res) {
     console.log("💡 Forwarded booking_source:", booking_source);
 
 
-   // === Check if Welcome Offer has expired ===
-   let welcomeOfferExpiry = null;
-   for (const f of cf) {
-     if (!f) continue;
-     const name = normLower(f.name || f.label || "");
-   if (name.includes("welcome") && name.includes("expiry") && f.value) {
-    welcomeOfferExpiry = new Date(f.value);
-    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry);
-    break;
-  }
-}
 
-   // Redirect to invalid page if offer has expired
-   if (welcomeOfferExpiry && new Date() > welcomeOfferExpiry) {
-     console.log("⏰ Offer expired, redirecting to invalid page");
-     return res.redirect(
-       302,
-       "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-  );
-}
-
-
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
+    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !(welcomeOfferExpiry && new Date() > welcomeOfferExpiry);
     console.log("➡️ isValid:", isValid);
 
    // Build query string for redirect
@@ -159,6 +151,19 @@ export default async function validateOffer(req, res) {
    const redirectTo = isValid
      ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
      : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
+
+
+
+   // === Validation summary log (paste here)
+   console.log("📝 Validation Summary:");
+   console.log("🏷️ Contact tags:", contact.tags);
+   console.log("✅ hasTag:", hasTag);
+   console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
+   console.log("🎯 offerBooked:", offerBooked);
+   console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString() : "N/A");
+   console.log("📅 Today:", new Date().toISOString());
+   console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
+   console.log("💡 Forwarded booking_source:", booking_source);
 
 
     console.log("➡️ Redirecting to:", redirectTo);
