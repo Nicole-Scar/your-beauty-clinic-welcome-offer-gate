@@ -1,17 +1,21 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "headers": [
-    {
-      "source": "/((?!api/).*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "no-referrer-when-downgrade" },
-        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" }
-      ]
-    }
-  ]
+export default function handler(req, res) {
+  console.log("🟢 ENTRY HIT");
+  console.log("QUERY:", req.query);
+
+  const { contactId, utm_source } = req.query;
+
+  if (!contactId) {
+    return res.status(302).setHeader(
+      "Location",
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    ).end();
+  }
+
+  const qs = new URLSearchParams({ contactId });
+  if (utm_source) qs.set("utm_source", utm_source);
+
+  res.status(302).setHeader(
+    "Location",
+    `/api/validateOffer?${qs.toString()}`
+  ).end();
 }
