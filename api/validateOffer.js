@@ -118,12 +118,13 @@ export default async function validateOffer(req, res) {
     }
 
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
-    console.log("💡 Forwarded UTMs:", { utm_source, utm_medium, utm_campaign, source });
+    console.log("💡 Forwarded booking_source:", booking_source);
+
 
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
     console.log("➡️ isValid:", isValid);
 
-   // Build query string for redirect with UTMs
+   // Build query string for redirect
    const qs = new URLSearchParams({ contactId });
    if (booking_source) qs.set("booking_source", booking_source);
 
