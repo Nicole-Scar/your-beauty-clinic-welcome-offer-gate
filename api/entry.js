@@ -1,19 +1,17 @@
+// Minimal redirect route to forward UTMs to validateOffer
 export default function handler(req, res) {
-  const { contactId, utm_source } = req.query;
+  const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
   if (!contactId) {
-    return res.redirect(
-      302,
-      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
-    );
+    return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
   }
 
-  // FORCE param forward in a single redirect
-  let redirectUrl = `/api/validateOffer?contactId=${contactId}`;
+  // Build query string for validateOffer
+  const qs = new URLSearchParams({ contactId });
+  if (utm_source) qs.set("utm_source", utm_source);
+  if (utm_medium) qs.set("utm_medium", utm_medium);
+  if (utm_campaign) qs.set("utm_campaign", utm_campaign);
+  if (source) qs.set("source", source);
 
-  if (utm_source) {
-    redirectUrl += `&utm_source=${encodeURIComponent(utm_source)}`;
-  }
-
-  return res.redirect(302, redirectUrl);
+  return res.redirect(302, `/api/validateOffer?${qs.toString()}`);
 }
