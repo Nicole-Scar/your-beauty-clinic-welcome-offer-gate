@@ -121,6 +121,28 @@ export default async function validateOffer(req, res) {
     console.log("💡 Forwarded booking_source:", booking_source);
 
 
+   // === Check if Welcome Offer has expired ===
+   let welcomeOfferExpiry = null;
+   for (const f of cf) {
+     if (!f) continue;
+     const name = normLower(f.name || f.label || "");
+   if (name.includes("welcome") && name.includes("expiry") && f.value) {
+    welcomeOfferExpiry = new Date(f.value);
+    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry);
+    break;
+  }
+}
+
+   // Redirect to invalid page if offer has expired
+   if (welcomeOfferExpiry && new Date() > welcomeOfferExpiry) {
+     console.log("⏰ Offer expired, redirecting to invalid page");
+     return res.redirect(
+       302,
+       "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+  );
+}
+
+
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
     console.log("➡️ isValid:", isValid);
 
