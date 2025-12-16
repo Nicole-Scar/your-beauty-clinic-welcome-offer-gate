@@ -1,17 +1,23 @@
-// Minimal redirect route to forward UTMs to validateOffer
 export default function handler(req, res) {
   const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
   if (!contactId) {
-    return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    return res.redirect(
+      302,
+      "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971"
+    );
   }
 
-  // Build query string for validateOffer
-  const qs = new URLSearchParams({ contactId });
-  if (utm_source) qs.set("utm_source", utm_source);
-  if (utm_medium) qs.set("utm_medium", utm_medium);
-  if (utm_campaign) qs.set("utm_campaign", utm_campaign);
-  if (source) qs.set("source", source);
+  // Build query for validateOffer
+  const params = new URLSearchParams({ contactId });
+  if (utm_source) params.set("utm_source", utm_source);
+  if (utm_medium) params.set("utm_medium", utm_medium);
+  if (utm_campaign) params.set("utm_campaign", utm_campaign);
+  if (source) params.set("source", source);
 
-  return res.redirect(302, `/api/validateOffer?${qs.toString()}`);
+  // **Redirect directly to validateOffer API**
+  return res.redirect(
+    302,
+    `https://your-beauty-clinic-welcome-offer-ga.vercel.app/api/validateOffer?${params.toString()}`
+  );
 }
