@@ -1,6 +1,8 @@
-// entry.js - Minimal redirect logic for your trigger link
 export default function handler(req, res) {
-  const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
+  // Log immediately so we can SEE what Vercel receives
+  console.log("🟢 ENTRY QUERY:", req.query);
+
+  const { contactId } = req.query;
 
   if (!contactId) {
     return res.redirect(
@@ -9,12 +11,8 @@ export default function handler(req, res) {
     );
   }
 
-  const qs = new URLSearchParams();
-  qs.set("contactId", contactId);
-  qs.set("utm_source", utm_source || "");
-  qs.set("utm_medium", utm_medium || "");
-  qs.set("utm_campaign", utm_campaign || "");
-  qs.set("source", source || "");
+  // 🚨 Forward ALL query params EXACTLY as received
+  const qs = new URLSearchParams(req.query).toString();
 
-  return res.redirect(302, `/api/validateOffer?${qs.toString()}`);
+  return res.redirect(302, `/api/validateOffer?${qs}`);
 }
