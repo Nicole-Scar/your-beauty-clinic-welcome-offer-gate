@@ -90,23 +90,37 @@ export default async function validateOffer(req, res) {
         }
 
 
-        if (!welcomeOfferExpiry && name.includes("expiry") && val) {
-          let parsed = null;
+    if (!welcomeOfferExpiry && name.includes("expiry") && val) {
+    let parsed = null;
 
-        if (typeof val === "string") {
-         // Remove ordinal suffixes like 1st, 2nd, 3rd, 4th
-         const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-         parsed = new Date(cleaned);
-       } else {
-         parsed = new Date(val);
-       }
+    if (typeof val === "string") {
+      // Remove ordinal suffixes like 1st, 2nd, 3rd, 4th and trim whitespace
+      const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1").trim();
 
-       if (!isNaN(parsed)) {
-        welcomeOfferExpiry = parsed;
-        console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
-      } else {
-        console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+      // Try parsing with Date constructor
+      parsed = new Date(cleaned);
+
+      // Fallback: parse manually if Date fails
+      if (isNaN(parsed)) {
+        const match = cleaned.match(/([a-zA-Z]+)\s+(\d{1,2})\s+(\d{4})/);
+        if (match) {
+          const monthStr = match[1];
+          const day = parseInt(match[2], 10);
+          const year = parseInt(match[3], 10);
+          const month = new Date(`${monthStr} 1, 2000`).getMonth();
+          parsed = new Date(year, month, day);
+        }
       }
+    } else {
+      parsed = new Date(val);
+    }
+
+    if (!isNaN(parsed)) {
+      welcomeOfferExpiry = parsed;
+      console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toDateString());
+    } else {
+      console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+     }
     }
    }
  }
@@ -169,7 +183,7 @@ export default async function validateOffer(req, res) {
    console.log("✅ hasTag:", hasTag);
    console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
    console.log("🎯 offerBooked:", offerBooked);
-   console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString() : "N/A");
+   console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toDateString() : "N/A");
    console.log("📅 Today:", new Date().toISOString());
    console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
    console.log("💡 Forwarded booking_source:", booking_source);
