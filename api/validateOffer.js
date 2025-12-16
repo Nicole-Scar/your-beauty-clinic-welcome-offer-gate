@@ -8,7 +8,7 @@ function normLower(v) {
 export default async function validateOffer(req, res) {
   try {
     const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
-    const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
+    const { contactId, booking_source } = req.query;
 
     if (!contactId) {
       console.log("❌ No contactId in URL");
@@ -124,12 +124,12 @@ export default async function validateOffer(req, res) {
     console.log("➡️ isValid:", isValid);
 
    // Build query string for redirect with UTMs
-   // Forward UTMs if present in the URL
    const qs = new URLSearchParams({ contactId });
-   if (utm_source) qs.set("utm_source", utm_source);
-   if (utm_medium) qs.set("utm_medium", utm_medium);
-   if (utm_campaign) qs.set("utm_campaign", utm_campaign);
-   if (source) qs.set("source", source);
+   if (booking_source) qs.set("booking_source", booking_source);
+
+
+   console.log("💡 Forwarded booking_source:", booking_source);
+
 
 
    // Final redirect

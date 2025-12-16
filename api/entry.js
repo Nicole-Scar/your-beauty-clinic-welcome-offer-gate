@@ -1,5 +1,5 @@
 export default function handler(req, res) {
-  const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
+  const { contactId, booking_source } = req.query;
 
   if (!contactId) {
     return res.redirect(
@@ -8,15 +8,10 @@ export default function handler(req, res) {
     );
   }
 
-  // Forward all UTMs + fallback source
+  // Forward contactId + booking_source
   const qs = new URLSearchParams({ contactId });
-  qs.set("utm_source", utm_source || source || "");
-  if (utm_medium) qs.set("utm_medium", utm_medium);
-  if (utm_campaign) qs.set("utm_campaign", utm_campaign);
-  if (source) qs.set("source", source);
+  if (booking_source) qs.set("booking_source", booking_source);
 
-  // Use **absolute URL** to prevent query param stripping
   const redirectUrl = `https://your-beauty-clinic-welcome-offer-ga.vercel.app/api/validateOffer?${qs.toString()}`;
-
-  return res.redirect(302, redirectUrl); // 302 is fine if Vercel routing is correct
+  return res.redirect(307, redirectUrl);
 }
