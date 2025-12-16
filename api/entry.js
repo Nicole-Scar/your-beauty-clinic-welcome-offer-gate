@@ -1,8 +1,5 @@
 export default function handler(req, res) {
-  // Log immediately so we can SEE what Vercel receives
-  console.log("🟢 ENTRY QUERY:", req.query);
-
-  const { contactId } = req.query;
+  const { contactId, utm_source } = req.query;
 
   if (!contactId) {
     return res.redirect(
@@ -11,8 +8,12 @@ export default function handler(req, res) {
     );
   }
 
-  // 🚨 Forward ALL query params EXACTLY as received
-  const qs = new URLSearchParams(req.query).toString();
+  // FORCE param forward in a single redirect
+  let redirectUrl = `/api/validateOffer?contactId=${contactId}`;
 
-  return res.redirect(302, `/api/validateOffer?${qs}`);
+  if (utm_source) {
+    redirectUrl += `&utm_source=${encodeURIComponent(utm_source)}`;
+  }
+
+  return res.redirect(302, redirectUrl);
 }
