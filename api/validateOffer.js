@@ -90,15 +90,24 @@ export default async function validateOffer(req, res) {
         }
 
 
-       if (!welcomeOfferExpiry && name.includes("expiry")) {
-       const parsed = new Date(val);
+        if (!welcomeOfferExpiry && name.includes("expiry") && val) {
+          let parsed = null;
+
+        if (typeof val === "string") {
+         // Remove ordinal suffixes like 1st, 2nd, 3rd, 4th
+         const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+         parsed = new Date(cleaned);
+       } else {
+         parsed = new Date(val);
+       }
+
        if (!isNaN(parsed)) {
         welcomeOfferExpiry = parsed;
         console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
-       } else {
-         console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
-       }
-     }
+      } else {
+        console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+      }
+    }
    }
  }
 
