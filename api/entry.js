@@ -1,4 +1,3 @@
-// /api/entry.js
 export default function handler(req, res) {
   const { contactId, utm_source, utm_medium, utm_campaign, source } = req.query;
 
@@ -9,14 +8,15 @@ export default function handler(req, res) {
     );
   }
 
+  // Forward all UTMs + fallback source
   const qs = new URLSearchParams({ contactId });
   qs.set("utm_source", utm_source || source || "");
   if (utm_medium) qs.set("utm_medium", utm_medium);
   if (utm_campaign) qs.set("utm_campaign", utm_campaign);
   if (source) qs.set("source", source);
 
-  // FULL absolute URL
+  // 🔹 Absolute URL to validateOffer prevents Vercel stripping
   const redirectUrl = `https://your-beauty-clinic-welcome-offer-ga.vercel.app/api/validateOffer?${qs.toString()}`;
-  
-  return res.redirect(307, redirectUrl); // 307 preserves query params
+
+  return res.redirect(307, redirectUrl); // 307 preserves query params reliably
 }
