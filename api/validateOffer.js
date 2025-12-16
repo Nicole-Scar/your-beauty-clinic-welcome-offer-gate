@@ -90,40 +90,18 @@ export default async function validateOffer(req, res) {
         }
 
 
-    if (!welcomeOfferExpiry && name.includes("expiry") && val) {
-    let parsed = null;
-
-    if (typeof val === "string") {
-      // Remove ordinal suffixes like 1st, 2nd, 3rd, 4th and trim whitespace
-      const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1").trim();
-
-      // Try parsing with Date constructor
-      parsed = new Date(cleaned);
-
-      // Fallback: parse manually if Date fails
-      if (isNaN(parsed)) {
-        const match = cleaned.match(/([a-zA-Z]+)\s+(\d{1,2})\s+(\d{4})/);
-        if (match) {
-          const monthStr = match[1];
-          const day = parseInt(match[2], 10);
-          const year = parseInt(match[3], 10);
-          const month = new Date(`${monthStr} 1, 2000`).getMonth();
-          parsed = new Date(year, month, day);
+      if (!welcomeOfferExpiry && name.toLowerCase().includes("expiry") && val) {
+        const parsed = new Date(val);
+        if (!isNaN(parsed)) {
+          welcomeOfferExpiry = parsed;
+          console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
+        } else {
+          console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
         }
       }
-    } else {
-      parsed = new Date(val);
-    }
-
-    if (!isNaN(parsed)) {
-      welcomeOfferExpiry = parsed;
-      console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toDateString());
-    } else {
-      console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
      }
-    }
    }
- }
+
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
