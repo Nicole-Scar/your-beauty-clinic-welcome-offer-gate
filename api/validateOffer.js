@@ -90,22 +90,31 @@ export default async function validateOffer(req, res) {
         }
 
 
-   if (!welcomeOfferExpiry && name.toLowerCase().includes("expiry") && val) {
-     let parsed = null;
+      if (!welcomeOfferExpiry && name.toLowerCase().includes("expiry") && val) {
+       let parsed = null;
 
-     if (typeof val === "string") {
-       // Remove ordinal suffixes like 1st, 2nd, 3rd, 4th and trim whitespace
+      if (typeof val === "string") {
+       // Remove ordinal suffixes
        const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1").trim();
-        parsed = new Date(cleaned);
-      } else {
-        parsed = new Date(val);
-      }
 
-     if (!isNaN(parsed)) {
-        welcomeOfferExpiry = parsed;
-        console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
-      } else {
-        console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+       // Try ISO split (YYYY-MM-DD)
+       const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+       if (isoMatch) {
+       const [_, year, month, day] = isoMatch;
+       parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+     } else {
+       // fallback for other string formats
+       parsed = new Date(cleaned);
+       }
+     } else {
+       parsed = new Date(val);
+     }
+
+      if (!isNaN(parsed)) {
+       welcomeOfferExpiry = parsed;
+       console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
+     } else {
+       console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
        }
       }
      }
