@@ -124,13 +124,15 @@ export default async function validateOffer(req, res) {
     console.log("➡️ isValid:", isValid);
 
    // Build query string for redirect with UTMs
+   // New snippet
    const qs = new URLSearchParams({ contactId });
 
-   // Forward all UTMs if present
-   if (utm_source) qs.set("utm_source", utm_source);
+   // Always forward utm_source (or fallback to source)
+   qs.set("utm_source", utm_source || source || "");
    if (utm_medium) qs.set("utm_medium", utm_medium);
    if (utm_campaign) qs.set("utm_campaign", utm_campaign);
    if (source) qs.set("source", source);
+
 
    // Final redirect
    const redirectTo = isValid
