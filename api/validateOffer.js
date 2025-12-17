@@ -94,25 +94,15 @@ export default async function validateOffer(req, res) {
         // === New: parse Welcome Offer Expiry by field name
         if (name.includes("expiry") || name.includes("expiration")) {
           const val = f.value;
-          const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-          let parsed = null;
-          const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (isoMatch) {
-            const [_, year, month, day] = isoMatch;
-            parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-            parsed = new Date(cleaned);
-        }
-
-        if (!isNaN(parsed.getTime())) {
-          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
-          console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, welcomeOfferExpiry.toISOString().slice(0,10));
-        } else {
-          console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+          const parsed = new Date(val); // Accepts YYYY-MM-DD, ISO, or timestamp
+          if (!isNaN(parsed.getTime())) {
+            if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
+            console.log("🗓️ Inferred Welcome Offer Expiry (" + name + ") =>", welcomeOfferExpiry.toISOString().slice(0,10));
+          } else {
+          console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
         }
       }
-    }
-  }
+
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
