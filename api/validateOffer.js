@@ -53,7 +53,9 @@ export default async function validateOffer(req, res) {
     console.log("🏷️ Contact tags:", contact.tags);
     console.log("✅ hasTag:", hasTag);
 
-    const cf = Array.isArray(contact.customField) ? contact.customField : (contact.customFields || []);
+    const cf = Array.isArray(contact.customField)
+      ? contact.customField
+      : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
     const valueIsYes = (v) => {
