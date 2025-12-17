@@ -94,7 +94,7 @@ export default async function validateOffer(req, res) {
         // === New: parse Welcome Offer Expiry by field name
         if (name.includes("expiry") || name.includes("expiration")) {
           const val = f.value;
-          let parsed = null;
+          let parsed = new Date(val); // Accept string, ISO, or timestamp
 
         if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
           const [year, month, day] = val.trim().split("-").map(Number);
