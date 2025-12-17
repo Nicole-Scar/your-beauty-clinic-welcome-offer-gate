@@ -147,8 +147,13 @@ export default async function validateOffer(req, res) {
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
     console.log("💡 Forwarded booking_source:", booking_source);
 
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
+    const now = new Date();
+    const isExpired = welcomeOfferExpiry ? now > welcomeOfferExpiry : false;
+    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !isExpired;
+
+    console.log("⏰ Offer expired?", isExpired);
     console.log("➡️ isValid:", isValid);
+
 
 
     // === Validation summary log (with expiry)
