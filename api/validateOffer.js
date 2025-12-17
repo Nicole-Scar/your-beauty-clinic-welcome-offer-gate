@@ -106,7 +106,7 @@ export default async function validateOffer(req, res) {
           } else {
             parsed = new Date(f.value);
           }
-          if (!isNaN(parsed)) {
+          if (!isNaN(parsed.getTime())) {
             if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
             console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString().slice(0, 10));
           } else {
