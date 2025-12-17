@@ -90,20 +90,17 @@ export default async function validateOffer(req, res) {
         }
 
 
-        // === Updated expiry field parsing ===
-      if (f.name === "Welcome Offer Expiry" || f.label === "Welcome Offer Expiry") {
-        const val = f.value;
-        console.log("🔹 Exact match expiry field value:", val); // debug to confirm GHL value
-        const parsed = new Date(val); // GHL format is YYYY-MM-DD
-
-      if (!isNaN(parsed)) {
-        welcomeOfferExpiry = parsed;
-        console.log(`🗓️ Welcome Offer Expiry (exact match) =>`, parsed.toISOString());
+       if ((f.name || f.label || "").trim().toLowerCase() === "welcome offer expiry") {
+         const val = f.value;
+         const parsed = new Date(val); // GHL gives YYYY-MM-DD
+       if (!isNaN(parsed)) {
+         welcomeOfferExpiry = parsed;
+         console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString());
        } else {
-        console.log(`⚠️ Expiry field found but invalid date =>`, val);
-       }
+         console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, val);
       }
      }
+    }
    }
 
 
