@@ -77,7 +77,7 @@ export default async function validateOffer(req, res) {
     if (welcomeOfferAccess === null || offerBooked === null) {
       for (const f of cf) {
         if (!f) continue;
-        const name = normLower(f.name || f.label || "");
+        const name = normLower(f.field || f.name || f.label || "");
         const val = f.value;
 
         if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
