@@ -90,18 +90,22 @@ export default async function validateOffer(req, res) {
         }
 
 
-       if ((f.name || f.label || "").trim().toLowerCase() === "welcome offer expiry") {
-         const val = f.value;
-         const parsed = new Date(val); // GHL gives YYYY-MM-DD
-       if (!isNaN(parsed)) {
-         welcomeOfferExpiry = parsed;
-         console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString());
-       } else {
-         console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, val);
+    if (!welcomeOfferExpiry) {
+      const fieldName = f.name || f.label || "";
+      if (fieldName.trim().toLowerCase() === "welcome offer expiry") {
+      const val = f.value;
+      console.log("🔹 Exact match expiry field value from GHL:", val);
+      const parsed = new Date(val); // GHL format is YYYY-MM-DD
+      if (!isNaN(parsed)) {
+        welcomeOfferExpiry = parsed;
+        console.log(`🗓️ Welcome Offer Expiry =>`, parsed.toISOString());
+      } else {
+        console.log(`⚠️ Expiry field found but invalid date =>`, val);
       }
-     }
     }
-   }
+  }
+}
+
 
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
