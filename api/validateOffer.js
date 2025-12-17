@@ -116,6 +116,13 @@ export default async function validateOffer(req, res) {
     }
   }
 
+
+       if (welcomeOfferExpiry) {
+         welcomeOfferExpiry = new Date(welcomeOfferExpiry);
+         welcomeOfferExpiry.setUTCHours(23, 59, 59, 999);
+       }
+
+
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
       const booleanFields = cf
