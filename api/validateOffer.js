@@ -93,28 +93,25 @@ export default async function validateOffer(req, res) {
 
         // === New: parse Welcome Offer Expiry by field name
         if (name.includes("expiry") || name.includes("expiration")) {
+          const val = f.value;
           let parsed = null;
-          if (typeof f.value === "string") {
-            const cleaned = f.value.trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-            const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (isoMatch) {
-              const [_, year, month, day] = isoMatch;
-              parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            } else {
-              parsed = new Date(cleaned);
-            }
-          } else {
-            parsed = new Date(f.value);
-          }
-          if (!isNaN(parsed.getTime())) {
-            if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
-            console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString().slice(0, 10));
-          } else {
-            console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, f.value);
-          }
+
+        if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+          const [year, month, day] = val.trim().split("-").map(Number);
+          parsed = new Date(year, month - 1, day);
+        } else {
+          parsed = new Date(val);
+        }
+
+        if (!isNaN(parsed.getTime())) {
+          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
+          console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, welcomeOfferExpiry.toISOString().slice(0,10));
+        } else {
+          console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
         }
       }
     }
+  }
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
@@ -157,7 +154,7 @@ export default async function validateOffer(req, res) {
     console.log("✅ hasTag:", hasTag);
     console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
     console.log("🎯 offerBooked:", offerBooked);
-    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry instanceof Date && !isNaN(welcomeOfferExpiry) ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
+    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
     console.log("📅 Today:", new Date().toISOString());
     console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
     console.log("💡 Forwarded booking_source:", booking_source);
