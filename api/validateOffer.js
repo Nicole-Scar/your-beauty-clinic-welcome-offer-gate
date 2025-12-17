@@ -78,7 +78,7 @@ export default async function validateOffer(req, res) {
     if (welcomeOfferAccess === null || offerBooked === null) {
       for (const f of cf) {
         if (!f) continue;
-        const name = normLower(f.name || f.label || "");
+        const name = normLower(f.name ||	 f.label || "");
         const val = f.value;
         if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
           welcomeOfferAccess = valueIsYes(val);
@@ -90,21 +90,34 @@ export default async function validateOffer(req, res) {
         }
 
 
-    if (!welcomeOfferExpiry) {
-      const fieldName = f.name || f.label || "";
-      if (fieldName.trim().toLowerCase() === "welcome offer expiry") {
-      const val = f.value;
-      console.log("🔹 Exact match expiry field value from GHL:", val);
-      const parsed = new Date(val); // GHL format is YYYY-MM-DD
-      if (!isNaN(parsed)) {
-        welcomeOfferExpiry = parsed;
-        console.log(`🗓️ Welcome Offer Expiry =>`, parsed.toISOString());
-      } else {
-        console.log(`⚠️ Expiry field found but invalid date =>`, val);
+   if (!welcomeOfferExpiry && val) {
+     let parsed = null;
+
+     if (typeof val === "string") {
+       // Remove ordinal suffixes
+       const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+
+       // Try ISO split (YYYY-MM-DD)
+       const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+       if (isoMatch) {
+         const [_, year, month, day] = isoMatch;
+         parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+       } else {
+         // fallback for other string formats
+         parsed = new Date(cleaned);
+       }
+     } else {
+       parsed = new Date(val);
+     }
+
+     if (!isNaN(parsed)) {
+       welcomeOfferExpiry = parsed;
+       console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString());
+     } else {
+       console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, val);
       }
     }
   }
-}
 
 
 
