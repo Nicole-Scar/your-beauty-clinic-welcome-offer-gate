@@ -74,7 +74,7 @@ export default async function validateOffer(req, res) {
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    if (welcomeOfferAccess === null || offerBooked === null) {
+    if (true) {
       for (const f of cf) {
         if (!f) continue;
         const name = normLower(f.field || f.name || f.label || "");
@@ -155,7 +155,7 @@ export default async function validateOffer(req, res) {
     console.log("✅ hasTag:", hasTag);
     console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
     console.log("🎯 offerBooked:", offerBooked);
-    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
+    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry !== null ? new Date(welcomeOfferExpiry).toISOString().slice(0, 10) : "N/A");
     console.log("📅 Today:", new Date().toISOString());
     console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
     console.log("💡 Forwarded booking_source:", booking_source);
