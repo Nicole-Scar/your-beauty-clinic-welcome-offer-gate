@@ -76,45 +76,35 @@ export default async function validateOffer(req, res) {
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    if (true) {
       for (const f of cf) {
         if (!f) continue;
-        const name = (f.name || f.label || "").trim().toLowerCase();
+        const name = (f.name || "").trim().toLowerCase();
         const val = f.value;
 
+        // === welcomeOfferAccess
         if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
           welcomeOfferAccess = valueIsYes(val);
           console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
         }
+
+        // === offerBooked
         if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
           offerBooked = valueIsYes(val);
           console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
         }
 
-        // === New: parse Welcome Offer Expiry by field name
-        if (name.includes("expiry") || name.includes("expiration")) {
-          let parsed = null;
-          if (typeof f.value === "string") {
-            const cleaned = f.value.trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-            const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (isoMatch) {
-              const [_, year, month, day] = isoMatch;
-              parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            } else {
-              parsed = new Date(cleaned);
-            }
-          } else {
-            parsed = new Date(f.value);
-          }
-          if (!isNaN(parsed.getTime())) {
-            if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
-            console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString().slice(0, 10));
-          } else {
-            console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, f.value);
-          }
+        // === Welcome Offer Expiry
+        if (name === "welcome offer expiry") {
+          const parsed = new Date(val); // GHL gives YYYY-MM-DD
+            if (!isNaN(parsed.getTime())) {
+              welcomeOfferExpiry = parsed;
+              console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString().slice(0,10));
+        } else {
+              console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
         }
+       }
       }
-    }
+     }
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
