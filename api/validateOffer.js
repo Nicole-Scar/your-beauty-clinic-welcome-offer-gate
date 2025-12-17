@@ -79,13 +79,12 @@ export default async function validateOffer(req, res) {
       for (const f of cf) {
         if (!f) continue;
         const name = normLower(f.name ||	 f.label || "");
-        const val = f.value;
         if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
-          welcomeOfferAccess = valueIsYes(val);
+          welcomeOfferAccess = valueIsYes(f.value);
           console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
         }
         if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
-          offerBooked = valueIsYes(val);
+          offerBooked = valueIsYes(f.value);
           console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
         }
 
@@ -93,9 +92,9 @@ export default async function validateOffer(req, res) {
    if (!welcomeOfferExpiry && (f.value || f.value === 0)) {
      let parsed = null;
 
-     if (typeof val === "string") {
+     if (typeof f.value === "string"){
        // Remove ordinal suffixes
-       const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+       const cleaned = f.value.trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
 
        // Try ISO split (YYYY-MM-DD)
        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -107,14 +106,14 @@ export default async function validateOffer(req, res) {
          parsed = new Date(cleaned);
        }
      } else {
-       parsed = new Date(val);
+       parsed = new Date(f.value);
      }
 
      if (!isNaN(parsed)) {
        welcomeOfferExpiry = parsed;
        console.log(`🗓️ Inferred Welcome Offer Expiry (${f.name || f.label}) =>`, parsed.toISOString());
      } else {
-       console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, val);
+       console.log(`⚠️ Expiry field found but invalid date (${f.name || f.label}) =>`, f.value);
       }
     }
   }
