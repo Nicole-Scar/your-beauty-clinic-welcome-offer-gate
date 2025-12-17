@@ -90,31 +90,17 @@ export default async function validateOffer(req, res) {
         }
 
 
-      if (!welcomeOfferExpiry && val) {
-       let parsed = null;
-
-      if (typeof val === "string") {
-       // Remove ordinal suffixes
-       const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-
-       // Try ISO split (YYYY-MM-DD)
-       const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-       if (isoMatch) {
-       const [_, year, month, day] = isoMatch;
-       parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-     } else {
-       // fallback for other string formats
-       parsed = new Date(cleaned);
-       }
-     } else {
-       parsed = new Date(val);
-     }
+        // === Updated expiry field parsing ===
+      if (f.name === "Welcome Offer Expiry" || f.label === "Welcome Offer Expiry") {
+        const val = f.value;
+        console.log("🔹 Exact match expiry field value:", val); // debug to confirm GHL value
+        const parsed = new Date(val); // GHL format is YYYY-MM-DD
 
       if (!isNaN(parsed)) {
-       welcomeOfferExpiry = parsed;
-       console.log(`🗓️ Inferred Welcome Offer Expiry (${name}) =>`, parsed.toISOString());
-     } else {
-       console.log(`⚠️ Expiry field found but invalid date (${name}) =>`, val);
+        welcomeOfferExpiry = parsed;
+        console.log(`🗓️ Welcome Offer Expiry (exact match) =>`, parsed.toISOString());
+       } else {
+        console.log(`⚠️ Expiry field found but invalid date =>`, val);
        }
       }
      }
