@@ -90,7 +90,7 @@ export default async function validateOffer(req, res) {
         }
 
         // === New: parse Welcome Offer Expiry by field name
-        if (!welcomeOfferExpiry && name.includes("welcome") && name.includes("expiry")) {
+        if (!welcomeOfferExpiry && (name.includes("expiry") || name.includes("expiration"))) {
           let parsed = null;
           if (typeof f.value === "string") {
             const cleaned = f.value.trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
