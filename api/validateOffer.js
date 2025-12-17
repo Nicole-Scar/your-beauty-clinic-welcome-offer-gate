@@ -90,7 +90,7 @@ export default async function validateOffer(req, res) {
         }
 
 
-   if (!welcomeOfferExpiry && val) {
+   if (!welcomeOfferExpiry && (f.value || f.value === 0)) {
      let parsed = null;
 
      if (typeof val === "string") {
