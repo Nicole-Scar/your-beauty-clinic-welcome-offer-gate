@@ -107,17 +107,15 @@ export default async function validateOffer(req, res) {
         }
 
         if (!isNaN(parsed.getTime())) {
-          // ✅ Force END OF DAY in local time
-          parsed.setHours(23, 59, 59, 999);
-  
-         if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) {
-           welcomeOfferExpiry = parsed;
-         }
-
-         console.log("🗓️ Welcome Offer Expiry (end of day):", welcomeOfferExpiry.toString());
-         console.log("⏰ TEST — Offer expired?", welcomeOfferExpiry ? (new Date() > welcomeOfferExpiry) : "no expiry set");
-       }
+          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
+          console.log("🗓️ Inferred Welcome Offer Expiry (" + name + ") =>", welcomeOfferExpiry.toISOString().slice(0, 10));
+        } else {
+          console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
+        }
       }
+    }
+  }
+
 
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
@@ -153,8 +151,9 @@ export default async function validateOffer(req, res) {
 
     
     if (welcomeOfferExpiry) {
-      welcomeOfferExpiry.setHours(23, 59, 59, 999);
-    }
+      welcomeOfferExpiry = new Date(welcomeOfferExpiry);
+      welcomeOfferExpiry.setUTCHours(23, 59, 59, 999);
+  }
 
 
     const now = new Date();
