@@ -99,7 +99,23 @@ if (true) {
       console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
     }
 
-   if (name.includes("expiry") || name.includes("expiration") || val.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || val.match(/^\d{4}-\d{2}-\d{2}$/)) { let parsed = new Date(val); if       (!isNaN(parsed.getTime())) { welcomeOfferExpiry = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 23, 59, 59, 999); console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString()); } }
+if (
+  name.includes("expiry") ||
+  name.includes("expiration") ||
+  val.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) ||
+  val.match(/^\d{4}-\d{2}-\d{2}$/)
+) {
+  const parsed = val ? new Date(val) : null;
+  if (parsed && !isNaN(parsed.getTime())) {
+    welcomeOfferExpiry = new Date(
+      parsed.getFullYear(),
+      parsed.getMonth(),
+      parsed.getDate(),
+      23, 59, 59, 999
+    );
+    console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString());
+  }
+}
 
   } catch (err) {
    console.log("⚠️ Skipping field due to parse error:", f, err);
