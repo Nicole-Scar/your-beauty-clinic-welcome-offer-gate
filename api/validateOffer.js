@@ -103,8 +103,12 @@ if (true) {
         const [_, year, month, day] = isoMatch;
         parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       } else {
-        parsed = new Date(cleaned);
+	console.log("📌 f.value before manual parse:", val);
+        const parts = cleaned.split("-");
+        if (parts.length === 3) {
+          parsed = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
       }
+    }
 
       console.log("🗓️ parsed expiry:", parsed, "isNaN?", isNaN(parsed.getTime()));
 
