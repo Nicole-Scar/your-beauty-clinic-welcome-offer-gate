@@ -80,11 +80,11 @@ export default async function validateOffer(req, res) {
 if (true) {
   for (const f of cf) {
     if (!f) continue;
-    const rawVal = f.value;
-    const val = Array.isArray(rawVal) ? rawVal[0] : rawVal;
-    
-    const name = (f.name || f.label || "").trim().toLowerCase();
 
+    try {
+          const rawVal = f.value;
+          const val = Array.isArray(rawVal) ? String(rawVal[0]) : String(rawVal || "");
+          const name = (f.name || f.label || "").trim().toLowerCase();
     
     // Debug: show field name and value
     console.log("📌 Checking field:", name, "value:", val);
@@ -98,6 +98,15 @@ if (true) {
       offerBooked = valueIsYes(val);
       console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
     }
+
+   if (name.includes("expiry") || name.includes("expiration") || val.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || val.match(/^\d{4}-\d{2}-\d{2}$/)) { let parsed = new Date(val); if       (!isNaN(parsed.getTime())) { welcomeOfferExpiry = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 23, 59, 59, 999); console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString()); } }
+
+  } catch (err) {
+   console.log("⚠️ Skipping field due to parse error:", f, err);
+   continue;
+  }
+ }
+}
 
     // === Parse Welcome Offer Expiry by field name
     const rawVal = f.value;
