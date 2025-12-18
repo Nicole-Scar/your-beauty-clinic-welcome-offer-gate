@@ -98,9 +98,13 @@ if (true) {
     }
 
     // === Parse Welcome Offer Expiry by field name
-    if (name.includes("expiry") || name.includes("expiration")) {
-      const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-      let parsed = null;
+   if (name.includes("expiry") || name.includes("expiration")) {
+     // Handle array values
+     const rawVal = f.value;
+     const val = Array.isArray(rawVal) ? rawVal[0] : rawVal;
+
+     const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+     let parsed = null;
 
      // ISO YYYY-MM-DD
      const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -116,16 +120,21 @@ if (true) {
        }
      }
 
-      console.log("🗓️ parsed expiry:", parsed, "isNaN?", isNaN(parsed.getTime()));
+     console.log("🗓️ parsed expiry:", parsed, "isNaN?", isNaN(parsed?.getTime()));
 
-      if (!isNaN(parsed.getTime())) {
-        if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
+     if (!isNaN(parsed.getTime())) {
+       if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
 
-        // Force local end-of-day
-        welcomeOfferExpiry.setHours(23, 59, 59, 999);
-        console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString().slice(0, 10));
-      } else {
-        console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
+       // Force local end-of-day
+       welcomeOfferExpiry = new Date(
+         welcomeOfferExpiry.getFullYear(),
+         welcomeOfferExpiry.getMonth(),
+         welcomeOfferExpiry.getDate(),
+         23, 59, 59, 999
+       );
+       console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString().slice(0, 10));
+     } else {
+       console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
       }
     }
   }
