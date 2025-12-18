@@ -80,8 +80,10 @@ export default async function validateOffer(req, res) {
 if (true) {
   for (const f of cf) {
     if (!f) continue;
+    const rawVal = f.value;
+    const val = Array.isArray(rawVal) ? rawVal[0] : rawVal;
+    
     const name = (f.name || f.label || "").trim().toLowerCase();
-    const val = f.value;
 
     
     // Debug: show field name and value
