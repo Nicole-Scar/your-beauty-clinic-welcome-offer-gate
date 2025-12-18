@@ -98,13 +98,18 @@ if (true) {
     }
 
     // === Parse Welcome Offer Expiry by field name
-   if (name.includes("expiry") || name.includes("expiration")) {
-     // Handle array values
-     const rawVal = f.value;
-     const val = Array.isArray(rawVal) ? rawVal[0] : rawVal;
+    const rawVal = f.value;
+    const val = Array.isArray(rawVal) ? rawVal[0] : rawVal;
+    const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+    const fieldName = (f.name || f.label || "").trim().toLowerCase();
 
-     const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-     let parsed = null;
+    if (
+      fieldName.includes("expiry") ||
+      fieldName.includes("expiration") ||
+      cleaned.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || // MM/DD/YYYY
+      cleaned.match(/^\d{4}-\d{2}-\d{2}$/)           // YYYY-MM-DD
+    ) {
+      let parsed = null;
 
      // ISO YYYY-MM-DD
      const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -134,7 +139,7 @@ if (true) {
        );
        console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString().slice(0, 10));
      } else {
-       console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
+       console.log("⚠️ Expiry field found but invalid date (" + fieldName + ") =>", val);
       }
     }
   }
