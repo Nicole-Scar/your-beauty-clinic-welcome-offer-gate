@@ -117,11 +117,6 @@ export default async function validateOffer(req, res) {
   }
 
 
-       if (welcomeOfferExpiry) {
-         welcomeOfferExpiry = new Date(welcomeOfferExpiry);
-         welcomeOfferExpiry.setUTCHours(23, 59, 59, 999);
-       }
-
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
@@ -154,6 +149,13 @@ export default async function validateOffer(req, res) {
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
     console.log("💡 Forwarded booking_source:", booking_source);
 
+    
+    if (welcomeOfferExpiry) {
+      welcomeOfferExpiry = new Date(welcomeOfferExpiry);
+      welcomeOfferExpiry.setUTCHours(23, 59, 59, 999);
+  }
+
+
     const now = new Date();
     const isExpired = welcomeOfferExpiry ? now > welcomeOfferExpiry : false;
     const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !isExpired;
@@ -171,7 +173,7 @@ export default async function validateOffer(req, res) {
     console.log("🎯 offerBooked:", offerBooked);
     console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
     console.log("📅 Today:", new Date().toISOString());
-    console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
+    console.log("⏰ Offer expired?", isExpired);
     console.log("💡 Forwarded booking_source:", booking_source);
 
     // Build query string for redirect
