@@ -151,9 +151,8 @@ export default async function validateOffer(req, res) {
 
     
     if (welcomeOfferExpiry) {
-      welcomeOfferExpiry = new Date(welcomeOfferExpiry);
-      welcomeOfferExpiry.setUTCHours(23, 59, 59, 999);
-  }
+      welcomeOfferExpiry.setHours(23, 59, 59, 999);
+    }
 
 
     const now = new Date();
