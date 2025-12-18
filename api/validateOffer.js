@@ -76,71 +76,45 @@ export default async function validateOffer(req, res) {
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
+    if (true) {
+      for (const f of cf) {
+        if (!f) continue;
+        const name = (f.name || f.label || "").trim().toLowerCase();
+        const val = f.value;
 
-if (true) {
-  for (const f of cf) {
-    if (!f) continue;
-    const name = (f.name || f.label || "").trim().toLowerCase();
-    const val = f.value;
+        if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
+          welcomeOfferAccess = valueIsYes(val);
+          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+        }
+        if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
+          offerBooked = valueIsYes(val);
+          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
+        }
 
-    
-    // Debug: show field name and value
-    console.log("📌 Checking field:", name, "value:", val);
+        // === New: parse Welcome Offer Expiry by field name
+        if (name.includes("expiry") || name.includes("expiration")) {
+          const val = f.value;
+          const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+          let parsed = null;
 
 
-    if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
-      welcomeOfferAccess = valueIsYes(val);
-      console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
-    }
-    if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
-      offerBooked = valueIsYes(val);
-      console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
-    }
+          const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (isoMatch) {
+            const [_, year, month, day] = isoMatch;
+            parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+            parsed = new Date(cleaned);
+        }
 
-    // === Parse Welcome Offer Expiry by field name
-   if (name.includes("expiry") || name.includes("expiration")) {
-     // Handle array values
-     const rawVal = f.value;
-     const val = Array.isArray(rawVal) ? rawVal[0] : rawVal;
-
-     const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-     let parsed = null;
-
-     // ISO YYYY-MM-DD
-     const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-     if (isoMatch) {
-       const [_, year, month, day] = isoMatch;
-       parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-     } else {
-       // US-style MM/DD/YYYY
-       const mdyMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-       if (mdyMatch) {
-         const [_, month, day, year] = mdyMatch;
-         parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-       }
-     }
-
-     console.log("🗓️ parsed expiry:", parsed, "isNaN?", isNaN(parsed?.getTime()));
-
-     if (!isNaN(parsed.getTime())) {
-       if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
-
-       // Force local end-of-day
-       welcomeOfferExpiry = new Date(
-         welcomeOfferExpiry.getFullYear(),
-         welcomeOfferExpiry.getMonth(),
-         welcomeOfferExpiry.getDate(),
-         23, 59, 59, 999
-       );
-       console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry.toISOString().slice(0, 10));
-     } else {
-       console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
+        if (!isNaN(parsed.getTime())) {
+          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
+          console.log("🗓️ Inferred Welcome Offer Expiry (" + name + ") =>", welcomeOfferExpiry.toISOString().slice(0, 10));
+        } else {
+          console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
+        }
       }
     }
   }
-}
-
-
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
@@ -173,22 +147,8 @@ if (true) {
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
     console.log("💡 Forwarded booking_source:", booking_source);
 
-    
-    if (welcomeOfferExpiry) {
-      // parse as local midnight first
-      const parts = welcomeOfferExpiry.toISOString().slice(0,10).split("-");
-      welcomeOfferExpiry = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999);
-      console.log("🗓️ Welcome Offer Expiry forced local end-of-day:", welcomeOfferExpiry);
-    }
-
-
-    const now = new Date();
-    const isExpired = welcomeOfferExpiry ? now > welcomeOfferExpiry : false;
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !isExpired;
-
-    console.log("⏰ Offer expired?", isExpired);
+    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
     console.log("➡️ isValid:", isValid);
-
 
 
     // === Validation summary log (with expiry)
@@ -199,7 +159,7 @@ if (true) {
     console.log("🎯 offerBooked:", offerBooked);
     console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
     console.log("📅 Today:", new Date().toISOString());
-    console.log("⏰ Offer expired?", isExpired);
+    console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
     console.log("💡 Forwarded booking_source:", booking_source);
 
     // Build query string for redirect
