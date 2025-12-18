@@ -83,6 +83,11 @@ if (true) {
     const name = (f.name || f.label || "").trim().toLowerCase();
     const val = f.value;
 
+    
+    // Debug: show field name and value
+    console.log("📌 Checking field:", name, "value:", val);
+
+
     if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
       welcomeOfferAccess = valueIsYes(val);
       console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
