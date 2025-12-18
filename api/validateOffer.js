@@ -92,29 +92,40 @@ export default async function validateOffer(req, res) {
         }
 
         // === New: parse Welcome Offer Expiry by field name
-        if (name.includes("expiry") || name.includes("expiration")) {
-          const val = f.value;
-          const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-          let parsed = null;
+       if (name.includes("expiry") || name.includes("expiration")) {
+         const raw = String(f.value)
+           .trim()
+           .replace(/(\d+)(st|nd|rd|th)/gi, "$1");
 
+         let parsed = null;
 
-          const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (isoMatch) {
-            const [_, year, month, day] = isoMatch;
-            parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-            parsed = new Date(cleaned);
-        }
+         const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+         if (isoMatch) {
+           const [, y, m, d] = isoMatch;
+           parsed = new Date(Number(y), Number(m) - 1, Number(d));
+         } else {
+           parsed = new Date(raw);
+         }
 
-        if (!isNaN(parsed.getTime())) {
-          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
-          console.log("🗓️ Inferred Welcome Offer Expiry (" + name + ") =>", welcomeOfferExpiry.toISOString().slice(0, 10));
-        } else {
-          console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
-        }
-      }
-    }
-  }
+         if (!isNaN(parsed.getTime())) {
+           // ✅ FORCE END OF DAY (critical)
+           parsed.setHours(23, 59, 59, 999);
+
+           if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) {
+             welcomeOfferExpiry = parsed;
+           }
+
+           console.log(
+             "🗓️ Welcome Offer Expiry (end of day):",
+             welcomeOfferExpiry.toString()
+           );
+         } else {
+           console.log(
+             "⚠️ Expiry field found but invalid date (" + name + ") =>",
+             raw
+           );
+         }
+       }
 
 
 
@@ -149,11 +160,12 @@ export default async function validateOffer(req, res) {
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
     console.log("💡 Forwarded booking_source:", booking_source);
 
-    
-    if (welcomeOfferExpiry) {
-      welcomeOfferExpiry = new Date(welcomeOfferExpiry);
-      welcomeOfferExpiry.setUTCHours(23, 59, 59, 999);
-  }
+
+    console.log("🧪 NOW:", new Date().toString());
+    console.log(
+      "🧪 EXPIRY:",
+      welcomeOfferExpiry ? welcomeOfferExpiry.toString() : "none"
+    );
 
 
     const now = new Date();
