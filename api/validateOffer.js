@@ -102,18 +102,19 @@ if (true) {
       const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
       let parsed = null;
 
-      // Try ISO YYYY-MM-DD first
-      const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (isoMatch) {
-        const [_, year, month, day] = isoMatch;
-        parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      } else {
-	console.log("📌 f.value before manual parse:", val);
-        const parts = cleaned.split("-");
-        if (parts.length === 3) {
-          parsed = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      }
-    }
+     // ISO YYYY-MM-DD
+     const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+     if (isoMatch) {
+       const [_, year, month, day] = isoMatch;
+       parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+     } else {
+       // US-style MM/DD/YYYY
+       const mdyMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+       if (mdyMatch) {
+         const [_, month, day, year] = mdyMatch;
+         parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+       }
+     }
 
       console.log("🗓️ parsed expiry:", parsed, "isNaN?", isNaN(parsed.getTime()));
 
