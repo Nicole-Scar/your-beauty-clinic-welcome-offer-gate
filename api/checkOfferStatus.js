@@ -1,6 +1,8 @@
 export default async function checkOfferStatus(req, res) {
   try {
     const fetch = (await import('node-fetch')).default;
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
     const { contactId } = req.query;
 
     if (!contactId) return res.status(400).json({ error: 'Missing contactId' });

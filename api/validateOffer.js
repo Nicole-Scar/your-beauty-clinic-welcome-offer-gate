@@ -7,10 +7,6 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    // ---------- ADD CORS HEADERS HERE ----------
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    // -------------------------------------------
     const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
     const { contactId, booking_source } = req.query;
 
