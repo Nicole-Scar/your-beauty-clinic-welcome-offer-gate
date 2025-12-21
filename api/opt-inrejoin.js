@@ -21,11 +21,12 @@ export default async function handler(req, res) {
         headers: {
           Authorization: `Bearer ${process.env.GHL_API_KEY}`,
           "Content-Type": "application/json",
+          Version: "2021-07-28", // ✅ REQUIRED by GHL API
         },
       }
     );
 
-    // 2a️⃣ Log response for debugging
+    // 2a️⃣ Parse and log response for debugging
     const body = await ghlRes.json();
     console.log("[REJOIN DEBUG] fetch status:", ghlRes.status, "body:", body);
 
