@@ -1,58 +1,71 @@
+function norm(v) {
+  return v === null || v === undefined ? '' : String(v).trim();
+}
+function normLower(v) {
+  return norm(v).toLowerCase();
+}
+
 export default async function handler(req, res) {
   const { cid } = req.query;
 
   const VALID_REDIRECT =
     "https://yourbeautyclinic.bookedbeauty.co/subscribe-866156";
-
   const INVALID_REDIRECT =
     "https://yourbeautyclinic.bookedbeauty.co/rejoin-invalid";
 
-  // 1️⃣ Basic validation
   if (!cid) {
-    console.log("[REJOIN] ❌ Missing contact ID");
-    return res.writeHead(302, { Location: INVALID_REDIRECT }).end();
+    console.log("❌ Missing contact ID");
+    return res.redirect(302, INVALID_REDIRECT);
   }
 
   try {
-    // 2️⃣ Fetch contact from GHL
-    const ghlRes = await fetch(
+    const fetch = (await import('node-fetch')).default;
+    const apiKey = process.env.GHL_API_KEY;
+    const locationId = process.env.GHL_LOCATION_ID;
+
+    // 1️⃣ Try multiple endpoints
+    const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${cid}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.GHL_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${cid}`
+    ];
+
+    let contact = null;
+    for (const endpoint of endpoints) {
+      console.log("🔹 Trying endpoint:", endpoint);
+      const response = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
+      });
+      const data = await response.json().catch(() => ({}));
+      const candidate = data.contact || data;
+      if (response.ok && candidate && (candidate.id || candidate.contact)) {
+        contact = data.contact || candidate;
+        console.log("✅ Contact fetched:", contact.id || contact);
+        break;
+      } else {
+        console.log(`❌ Failed from ${endpoint} - Status: ${response.status}`);
       }
-    );
-
-    // 2a️⃣ Parse and log response
-    const body = await ghlRes.json();
-    console.log("[REJOIN DEBUG] fetch status:", ghlRes.status, "body:", body);
-
-    if (!ghlRes.ok) {
-      throw new Error(`Failed to fetch contact: ${ghlRes.status}`);
     }
 
-    // 3️⃣ Extract contact
-    const contact = body.contact || body.contacts?.[0];
-    if (!contact) throw new Error("Contact not found in response");
+    if (!contact) {
+      console.error("❌ No contact found after both endpoints");
+      return res.redirect(302, INVALID_REDIRECT);
+    }
 
-    // 4️⃣ TAG CHECKS
-    const tags = (contact.tags || []).map(t => t.toLowerCase().trim());
+    // 2️⃣ TAG CHECKS
+    const tags = Array.isArray(contact.tags) ? contact.tags.map(t => normLower(t)) : [];
     const hasEmailUnsubTag = tags.includes("unsubscribed from email");
     const hasSmsUnsubTag = tags.includes("unsubscribed from sms");
 
-    // 5️⃣ ROBUST CUSTOM FIELD HANDLING
+    // 3️⃣ ROBUST CUSTOM FIELD ARRAY
     const cf = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
-
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
     const customFields = {};
-    cf.forEach(field => {
-      if (field.name && field.value !== undefined) {
-        customFields[field.name.trim()] = field.value;
+    cf.forEach(f => {
+      if (f && f.name && f.value !== undefined) {
+        customFields[f.name.trim()] = f.value;
       }
     });
 
@@ -61,7 +74,6 @@ export default async function handler(req, res) {
     const emailOptedOut = emailStatus === "Opted-Out";
     const smsOptedOut = smsStatus === "Opted-Out";
 
-    // 6️⃣ DEBUG LOGGING
     console.log("[REJOIN DEBUG] contactId:", cid, {
       hasEmailUnsubTag,
       hasSmsUnsubTag,
@@ -71,20 +83,20 @@ export default async function handler(req, res) {
       smsOptedOut
     });
 
-    // 7️⃣ CHANNEL-MATCHING LOGIC
+    // 4️⃣ CHANNEL-MATCHING LOGIC
     const emailMatch = hasEmailUnsubTag && emailOptedOut;
     const smsMatch = hasSmsUnsubTag && smsOptedOut;
 
     if (emailMatch || smsMatch) {
       console.log("[REJOIN] ✅ Access granted");
-      return res.writeHead(302, { Location: VALID_REDIRECT }).end();
+      return res.redirect(302, VALID_REDIRECT);
     }
 
     console.log("[REJOIN] ❌ Access denied — no matching channel");
-    return res.writeHead(302, { Location: INVALID_REDIRECT }).end();
+    return res.redirect(302, INVALID_REDIRECT);
 
-  } catch (error) {
-    console.error("[REJOIN ERROR]", error);
-    return res.writeHead(302, { Location: INVALID_REDIRECT }).end();
+  } catch (err) {
+    console.error("🔥 REJOIN ERROR:", err);
+    return res.redirect(302, INVALID_REDIRECT);
   }
 }
