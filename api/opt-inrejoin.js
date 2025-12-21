@@ -14,14 +14,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 2️⃣ Fetch contact from GHL
+    // 2️⃣ Fetch contact from GHL (Option 1: standard endpoint)
     const ghlRes = await fetch(
-      `https://services.leadconnectorhq.com/contacts/${cid}`,
+      `https://rest.gohighlevel.com/v1/contacts/${cid}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.GHL_API_KEY}`,
-          "Content-Type": "application/json",
-          Version: "2021-07-28", // ✅ REQUIRED by GHL API
+          "Content-Type": "application/json"
         },
       }
     );
