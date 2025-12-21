@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       {
         headers: {
           Authorization: `Bearer ${process.env.GHL_API_KEY}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
       }
     );
@@ -43,14 +43,16 @@ export default async function handler(req, res) {
     const hasEmailUnsubTag = tags.includes("unsubscribed from email");
     const hasSmsUnsubTag = tags.includes("unsubscribed from sms");
 
-    // 5️⃣ STATUS CHECKS
-    const customFields = contact.customFields || {};
-    const emailStatus =
-      customFields["Email Marketing Status"] ||
-      customFields["email marketing status"];
-    const smsStatus =
-      customFields["SMS Marketing Status"] ||
-      customFields["sms marketing status"];
+    // 5️⃣ CUSTOM FIELD ARRAY FIX
+    // GHL returns custom fields as an array of { name, value }
+    const customFieldsArray = contact.customField || [];
+    const customFields = {};
+    customFieldsArray.forEach(field => {
+      customFields[field.name] = field.value;
+    });
+
+    const emailStatus = customFields["Email Marketing Status"];
+    const smsStatus = customFields["SMS Marketing Status"];
     const emailOptedOut = emailStatus === "Opted-Out";
     const smsOptedOut = smsStatus === "Opted-Out";
 
