@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 2️⃣ Fetch contact from GHL (Option 1: standard endpoint)
+    // 2️⃣ Fetch contact from GHL
     const ghlRes = await fetch(
       `https://rest.gohighlevel.com/v1/contacts/${cid}`,
       {
@@ -25,11 +25,10 @@ export default async function handler(req, res) {
       }
     );
 
-    // 2a️⃣ Parse and log response for debugging
+    // 2a️⃣ Parse and log response
     const body = await ghlRes.json();
     console.log("[REJOIN DEBUG] fetch status:", ghlRes.status, "body:", body);
 
-    // 2b️⃣ Handle non-200 responses
     if (!ghlRes.ok) {
       throw new Error(`Failed to fetch contact: ${ghlRes.status}`);
     }
@@ -43,10 +42,15 @@ export default async function handler(req, res) {
     const hasEmailUnsubTag = tags.includes("unsubscribed from email");
     const hasSmsUnsubTag = tags.includes("unsubscribed from sms");
 
-    // 5️⃣ CUSTOM FIELD ARRAY FIX (robust)
-    const customFieldsArray = contact.customField || contact.customFields || [];
+    // 5️⃣ ROBUST CUSTOM FIELD HANDLING
+    const cf = Array.isArray(contact.customField)
+      ? contact.customField
+      : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
+
+    console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
+
     const customFields = {};
-    customFieldsArray.forEach(field => {
+    cf.forEach(field => {
       if (field.name && field.value !== undefined) {
         customFields[field.name.trim()] = field.value;
       }
@@ -57,7 +61,7 @@ export default async function handler(req, res) {
     const emailOptedOut = emailStatus === "Opted-Out";
     const smsOptedOut = smsStatus === "Opted-Out";
 
-    // 6️⃣ DEBUG LOGGING (temporary)
+    // 6️⃣ DEBUG LOGGING
     console.log("[REJOIN DEBUG] contactId:", cid, {
       hasEmailUnsubTag,
       hasSmsUnsubTag,
