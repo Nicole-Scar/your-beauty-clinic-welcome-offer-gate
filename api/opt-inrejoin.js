@@ -43,12 +43,13 @@ export default async function handler(req, res) {
     const hasEmailUnsubTag = tags.includes("unsubscribed from email");
     const hasSmsUnsubTag = tags.includes("unsubscribed from sms");
 
-    // 5️⃣ CUSTOM FIELD ARRAY FIX
-    // GHL returns custom fields as an array of { name, value }
-    const customFieldsArray = contact.customField || [];
+    // 5️⃣ CUSTOM FIELD ARRAY FIX (robust)
+    const customFieldsArray = contact.customField || contact.customFields || [];
     const customFields = {};
     customFieldsArray.forEach(field => {
-      customFields[field.name] = field.value;
+      if (field.name && field.value !== undefined) {
+        customFields[field.name.trim()] = field.value;
+      }
     });
 
     const emailStatus = customFields["Email Marketing Status"];
