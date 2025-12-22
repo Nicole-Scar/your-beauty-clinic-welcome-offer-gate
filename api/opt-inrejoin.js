@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
 
-    // 1️⃣ Try multiple endpoints
+    // 1️⃣ Try multiple endpoints to reliably fetch the contact
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${cid}`,
       `https://rest.gohighlevel.com/v1/locations/${locationId}/contacts/${cid}`
@@ -56,43 +56,19 @@ export default async function handler(req, res) {
     const hasEmailUnsubTag = tags.includes("unsubscribed from email");
     const hasSmsUnsubTag = tags.includes("unsubscribed from sms");
 
-    // 3️⃣ ROBUST CUSTOM FIELD ARRAY
+    // 3️⃣ LOG CUSTOM FIELDS (optional, for visibility only)
     const cf = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
-    const customFields = {};
-    cf.forEach(f => {
-      if (f && f.name && f.value !== undefined) {
-        customFields[f.name.trim()] = f.value;
-      }
-    });
-
-    const emailStatus = customFields["Email Marketing Status"];
-    const smsStatus = customFields["SMS Marketing Status"];
-    const emailOptedOut = emailStatus === "Opted-Out";
-    const smsOptedOut = smsStatus === "Opted-Out";
-
-    console.log("[REJOIN DEBUG] contactId:", cid, {
-      hasEmailUnsubTag,
-      hasSmsUnsubTag,
-      emailStatus,
-      smsStatus,
-      emailOptedOut,
-      smsOptedOut
-    });
-
-    // 4️⃣ CHANNEL-MATCHING LOGIC
-    const emailMatch = hasEmailUnsubTag && emailOptedOut;
-    const smsMatch = hasSmsUnsubTag && smsOptedOut;
-
-    if (emailMatch || smsMatch) {
-      console.log("[REJOIN] ✅ Access granted");
+    // 4️⃣ CHANNEL-MATCHING (tag-only)
+    if (hasEmailUnsubTag || hasSmsUnsubTag) {
+      console.log("[REJOIN] ✅ Access granted via tag");
       return res.redirect(302, VALID_REDIRECT);
     }
 
-    console.log("[REJOIN] ❌ Access denied — no matching channel");
+    console.log("[REJOIN] ❌ Access denied — no unsubscribe tag found");
     return res.redirect(302, INVALID_REDIRECT);
 
   } catch (err) {
