@@ -36,36 +36,20 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    // ---------- CHECK EXPIRY ----------
+    // ---------- CHECK WELCOME OFFER ACTIVE ----------
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
     let offerActive = false;
+
     for (const f of cfArray) {
       const name = String(f.name || f.label || '').trim().toLowerCase();
-      const value = String(f.value || '').trim();
+      const value = String(f.value || '').trim().toLowerCase();
 
-      if (name.includes('expiry') || name.includes('expiration')) {
-        // 🔍 DEBUG: log raw field
-        console.log("🧪 Found expiry field:", { name: f.name, value });
-
-        // Parse expiry date
-        let expiryDate = new Date(value);
-        if (isNaN(expiryDate.getTime())) {
-          const parts = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (parts) {
-            const [_, m, d, y] = parts;
-            expiryDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-          }
-        }
-
-        // 🔍 DEBUG: log parsed date
-        console.log("🧪 Parsed expiry date:", expiryDate);
-
-        if (!isNaN(expiryDate.getTime()) && new Date() <= expiryDate) {
-          offerActive = true;
-        }
+      if (name === 'welcome offer active' && ['yes','true','1'].includes(value)) {
+        offerActive = true;
+        console.log("🧪 Matched Welcome Offer Active field:", { name: f.name, value });
         break;
       }
     }
