@@ -2,6 +2,7 @@ export default async function checkOfferStatus(req, res) {
   try {
     const fetch = (await import('node-fetch')).default;
 
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
@@ -17,12 +18,16 @@ export default async function checkOfferStatus(req, res) {
     ];
 
     let contact = null;
+
+    // Fetch contact from GHL
     for (const endpoint of endpoints) {
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
       });
+
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
+
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
         contact = data.contact || candidate;
         break;
@@ -31,7 +36,7 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    // Convert GHL custom fields into an array for uniform processing
+    // ---------- Convert custom fields into an array ----------
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({
@@ -39,11 +44,11 @@ export default async function checkOfferStatus(req, res) {
           value
         }));
 
-    // Debug log to inspect the fields
     console.log("🧩 RAW custom fields:", JSON.stringify(cfArray, null, 2));
 
-    // Normalize and check "Welcome Offer Active"
+    // ---------- Check for Welcome Offer Active ----------
     let offerActive = false;
+
     for (const f of cfArray) {
       const name = String(f.name || f.label || '').trim().toLowerCase();
       const value = String(f.value || '').trim().toLowerCase();
@@ -52,6 +57,12 @@ export default async function checkOfferStatus(req, res) {
         offerActive = true;
         break;
       }
+    }
+
+    // ---------- Optional: also require "welcome offer opt-in" tag ----------
+    const tags = Array.isArray(contact.tags) ? contact.tags.map(t => String(t).trim().toLowerCase()) : [];
+    if (!tags.includes('welcome offer opt-in')) {
+      offerActive = false;
     }
 
     console.log("🧪 checkOfferStatus result:", { contactId, offerActive });
