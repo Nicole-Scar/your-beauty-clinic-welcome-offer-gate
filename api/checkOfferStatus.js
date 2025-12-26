@@ -30,10 +30,30 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
-    // Extract Welcome Offer Active field
-    const cf = contact.customFields || {};
-    const offerActiveRaw = cf['Welcome Offer Active'] || '';
-    const offerActive = String(offerActiveRaw).toLowerCase() === 'yes';
+    // Extract Welcome Offer Active (name-based, robust)
+    let offerActive = false;
+
+    const cfArray = Array.isArray(contact.customField)
+      ? contact.customField
+      : Object.entries(contact.customFields || {}).map(
+          ([key, value]) => ({ name: key, value })
+        );
+
+    for (const f of cfArray) {
+      const name = String(f.name || '').trim().toLowerCase();
+      const value = String(f.value || '').trim().toLowerCase();
+
+      if (name === 'welcome offer active' && value === 'yes') {
+        offerActive = true;
+        break;
+      }
+    }
+
+    // 🔍 DEBUG — confirm final decision
+    console.log("🧪 checkOfferStatus result:", {
+      contactId,
+      offerActive
+    });
 
     return res.status(200).json({ offerActive });
 
