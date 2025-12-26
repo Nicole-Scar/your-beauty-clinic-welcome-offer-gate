@@ -40,35 +40,52 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    const cf = Array.isArray(contact.customField)
+    // --- Extract custom fields ---
+    const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
-    const valueIsYes = (v) => {
-      const s = normLower(v);
-      return s === "yes" || s === "true" || s === "1";
-    };
-
     let offerActive = false;
+    let expiryDate = null;
+    let expiryRawValue = null; // for logging
 
-    for (const f of cf) {
+    for (const f of cfArray) {
       const name = normLower(f.name || f.label || '');
-      const val = f.value;
+      const val = norm(f.value);
 
-      if (name.includes('welcome offer active')) {
-        offerActive = valueIsYes(val);
-        console.log("🧪 Matched Welcome Offer Active field:", { name: f.name, value: f.value });
-        break;
+      if (name.includes('expiry') || name.includes('expiration')) {
+        expiryRawValue = val; // capture raw value for logs
+
+        // Parse date reliably
+        let parsedDate = null;
+        const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1").trim();
+
+        // Try ISO YYYY-MM-DD first
+        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+          const [_, year, month, day] = isoMatch;
+          parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          parsedDate = new Date(cleaned);
+        }
+
+        if (!isNaN(parsedDate.getTime())) {
+          expiryDate = parsedDate;
+          offerActive = parsedDate >= new Date(); // Active if expiry is today or later
+          break; // stop after first valid expiry field
+        } else {
+          console.warn("⚠️ Invalid date in expiry field:", { name: f.name, value: f.value });
+        }
       }
     }
 
-    // Optional: confirm tag presence too
-    const tags = Array.isArray(contact.tags) ? contact.tags.map(t => normLower(t)) : [];
-    if (!tags.includes('welcome offer opt-in')) {
-      offerActive = false;
-    }
-
-    console.log("🧪 checkOfferStatus result:", { contactId, offerActive });
+    // --- DEBUG LOG ---
+    console.log("🧪 checkOfferStatus result:", {
+      contactId,
+      expiryRawValue,
+      expiryDate: expiryDate ? expiryDate.toISOString().slice(0, 10) : null,
+      offerActive
+    });
 
     return res.status(200).json({ offerActive });
 
