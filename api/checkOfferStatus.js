@@ -1,10 +1,3 @@
-function norm(v) {
-  return (v === null || v === undefined) ? '' : String(v).trim();
-}
-function normLower(v) {
-  return norm(v).toLowerCase();
-}
-
 export default async function checkOfferStatus(req, res) {
   try {
     const fetch = (await import('node-fetch')).default;
@@ -40,46 +33,33 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    // --- Extract custom fields ---
+    // --- Extract custom fields robustly ---
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
     let offerActive = false;
     let expiryDate = null;
-    let expiryRawValue = null; // for logging
+    let expiryRawValue = null;
 
     for (const f of cfArray) {
-      const name = normLower(f.name || f.label || '');
-      const val = norm(f.value);
+      const val = Array.isArray(f.value) ? f.value[0] : f.value; // handle array values
+      if (!val) continue;
 
-      if (name.includes('expiry') || name.includes('expiration')) {
-        expiryRawValue = val; // capture raw value for logs
+      const strVal = String(val).trim();
 
-        // Parse date reliably
-        let parsedDate = null;
-        const cleaned = val.replace(/(\d+)(st|nd|rd|th)/gi, "$1").trim();
-
-        // Try ISO YYYY-MM-DD first
-        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (isoMatch) {
-          const [_, year, month, day] = isoMatch;
-          parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-          parsedDate = new Date(cleaned);
-        }
-
+      // Basic date check: YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(strVal) || !isNaN(new Date(strVal).getTime())) {
+        expiryRawValue = strVal;
+        const parsedDate = new Date(strVal);
         if (!isNaN(parsedDate.getTime())) {
           expiryDate = parsedDate;
-          offerActive = parsedDate >= new Date(); // Active if expiry is today or later
-          break; // stop after first valid expiry field
-        } else {
-          console.warn("⚠️ Invalid date in expiry field:", { name: f.name, value: f.value });
+          offerActive = parsedDate >= new Date();
+          break; // stop at first valid date
         }
       }
     }
 
-    // --- DEBUG LOG ---
     console.log("🧪 checkOfferStatus result:", {
       contactId,
       expiryRawValue,
