@@ -47,7 +47,22 @@ export default async function checkOfferStatus(req, res) {
       const value = String(f.value || '').trim();
 
       if (name.includes('expiry') || name.includes('expiration')) {
-        const expiryDate = new Date(value);
+        // 🔍 DEBUG: log raw field
+        console.log("🧪 Found expiry field:", { name: f.name, value });
+
+        // Parse expiry date
+        let expiryDate = new Date(value);
+        if (isNaN(expiryDate.getTime())) {
+          const parts = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (parts) {
+            const [_, m, d, y] = parts;
+            expiryDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+          }
+        }
+
+        // 🔍 DEBUG: log parsed date
+        console.log("🧪 Parsed expiry date:", expiryDate);
+
         if (!isNaN(expiryDate.getTime()) && new Date() <= expiryDate) {
           offerActive = true;
         }
