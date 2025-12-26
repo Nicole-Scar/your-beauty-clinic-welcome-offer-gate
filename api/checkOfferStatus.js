@@ -3,12 +3,9 @@ export default async function checkOfferStatus(req, res) {
     const fetch = (await import('node-fetch')).default;
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-
     const { contactId } = req.query;
-    if (!contactId) return res.status(400).json({ offerActive: false });
+
+    if (!contactId) return res.status(400).json({ error: 'Missing contactId' });
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
@@ -31,37 +28,37 @@ export default async function checkOfferStatus(req, res) {
       }
     }
 
-    if (!contact) return res.status(404).json({ offerActive: false });
+    if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
+    // Extract custom fields
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
     let offerActive = false;
-    let expiryDate = null;
     let expiryRawValue = null;
-    let expiryFieldName = null;
+    let expiryDate = null;
 
     for (const f of cfArray) {
       const name = String(f.name || '').trim();
       const val = Array.isArray(f.value) ? f.value[0] : f.value;
       if (!val) continue;
 
+      // ✅ Only pick the field named "Welcome Offer Expiry"
       if (name.toLowerCase() === 'welcome offer expiry') {
         expiryRawValue = val;
-        expiryFieldName = name;
         const parsedDate = new Date(val);
         if (!isNaN(parsedDate.getTime())) {
           expiryDate = parsedDate;
           offerActive = parsedDate >= new Date();
         }
-        break; // stop at the matching field
+        break; // stop after finding the correct field
       }
     }
 
+    // 🔍 Debug log
     console.log("🧪 checkOfferStatus result:", {
       contactId,
-      expiryFieldName,
       expiryRawValue,
       expiryDate: expiryDate ? expiryDate.toISOString().slice(0, 10) : null,
       offerActive
@@ -71,6 +68,6 @@ export default async function checkOfferStatus(req, res) {
 
   } catch (err) {
     console.error("🔥 Error in checkOfferStatus:", err);
-    return res.status(500).json({ offerActive: false });
+    return res.status(500).json({ error: 'Server error' });
   }
 }
