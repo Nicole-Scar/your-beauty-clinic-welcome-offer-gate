@@ -41,15 +41,19 @@ export default async function checkOfferStatus(req, res) {
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
+    // Log all custom fields for debugging
+    console.log("🧩 All custom fields:", JSON.stringify(cfArray, null, 2));
+
     let offerActive = false;
 
     for (const f of cfArray) {
       const name = String(f.name || f.label || '').trim().toLowerCase();
       const value = String(f.value || '').trim().toLowerCase();
 
-      if (name === 'welcome offer active' && ['yes','true','1'].includes(value)) {
+      // Robust check using includes
+      if (name.includes('welcome offer active') && ['yes','true','1'].includes(value)) {
         offerActive = true;
-        console.log("🧪 Matched Welcome Offer Active field:", { name: f.name, value });
+        console.log("🧪 Matched Welcome Offer Active field:", { name: f.name, value: f.value });
         break;
       }
     }
