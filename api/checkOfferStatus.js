@@ -1,15 +1,19 @@
+function norm(v) {
+  return (v === null || v === undefined) ? '' : String(v).trim();
+}
+function normLower(v) {
+  return norm(v).toLowerCase();
+}
+
 export default async function checkOfferStatus(req, res) {
   try {
     const fetch = (await import('node-fetch')).default;
-
-    // ---------- HEADERS ----------
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
 
-    // ---------- CONTACT ID ----------
     const { contactId } = req.query;
     if (!contactId) return res.status(400).json({ offerActive: false });
 
@@ -36,30 +40,30 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    // ---------- CHECK WELCOME OFFER ACTIVE ----------
-    const cfArray = Array.isArray(contact.customField)
+    const cf = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
-    // Log all custom fields for debugging
-    console.log("🧩 All custom fields:", JSON.stringify(cfArray, null, 2));
+    const valueIsYes = (v) => {
+      const s = normLower(v);
+      return s === "yes" || s === "true" || s === "1";
+    };
 
     let offerActive = false;
 
-    for (const f of cfArray) {
-      const name = String(f.name || f.label || '').trim().toLowerCase();
-      const value = String(f.value || '').trim().toLowerCase();
+    for (const f of cf) {
+      const name = normLower(f.name || f.label || '');
+      const val = f.value;
 
-      // Robust check using includes
-      if (name.includes('welcome offer active') && ['yes','true','1'].includes(value)) {
-        offerActive = true;
+      if (name.includes('welcome offer active')) {
+        offerActive = valueIsYes(val);
         console.log("🧪 Matched Welcome Offer Active field:", { name: f.name, value: f.value });
         break;
       }
     }
 
-    // ---------- OPTIONAL: CHECK TAG ----------
-    const tags = Array.isArray(contact.tags) ? contact.tags.map(t => String(t).trim().toLowerCase()) : [];
+    // Optional: confirm tag presence too
+    const tags = Array.isArray(contact.tags) ? contact.tags.map(t => normLower(t)) : [];
     if (!tags.includes('welcome offer opt-in')) {
       offerActive = false;
     }
