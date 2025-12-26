@@ -33,7 +33,6 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    // --- Extract custom fields robustly ---
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
@@ -41,27 +40,28 @@ export default async function checkOfferStatus(req, res) {
     let offerActive = false;
     let expiryDate = null;
     let expiryRawValue = null;
+    let expiryFieldName = null;
 
     for (const f of cfArray) {
-      const val = Array.isArray(f.value) ? f.value[0] : f.value; // handle array values
+      const name = String(f.name || '').trim();
+      const val = Array.isArray(f.value) ? f.value[0] : f.value;
       if (!val) continue;
 
-      const strVal = String(val).trim();
-
-      // Basic date check: YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(strVal) || !isNaN(new Date(strVal).getTime())) {
-        expiryRawValue = strVal;
-        const parsedDate = new Date(strVal);
+      if (name.toLowerCase() === 'welcome offer expiry') {
+        expiryRawValue = val;
+        expiryFieldName = name;
+        const parsedDate = new Date(val);
         if (!isNaN(parsedDate.getTime())) {
           expiryDate = parsedDate;
           offerActive = parsedDate >= new Date();
-          break; // stop at first valid date
         }
+        break; // stop at the matching field
       }
     }
 
     console.log("🧪 checkOfferStatus result:", {
       contactId,
+      expiryFieldName,
       expiryRawValue,
       expiryDate: expiryDate ? expiryDate.toISOString().slice(0, 10) : null,
       offerActive
