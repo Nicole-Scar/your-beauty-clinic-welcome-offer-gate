@@ -2,9 +2,14 @@ export default async function checkOfferStatus(req, res) {
   try {
     const fetch = (await import('node-fetch')).default;
 
+    // ---------- HEADERS ----------
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
+    // ---------- CONTACT ID ----------
     const { contactId } = req.query;
     if (!contactId) return res.status(400).json({ offerActive: false });
 
@@ -31,7 +36,7 @@ export default async function checkOfferStatus(req, res) {
 
     if (!contact) return res.status(404).json({ offerActive: false });
 
-    // ---------- Check expiry date ----------
+    // ---------- CHECK EXPIRY ----------
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
@@ -50,11 +55,13 @@ export default async function checkOfferStatus(req, res) {
       }
     }
 
-    // ---------- Optional: check tag ----------
+    // ---------- OPTIONAL: CHECK TAG ----------
     const tags = Array.isArray(contact.tags) ? contact.tags.map(t => String(t).trim().toLowerCase()) : [];
     if (!tags.includes('welcome offer opt-in')) {
       offerActive = false;
     }
+
+    console.log("🧪 checkOfferStatus result:", { contactId, offerActive });
 
     return res.status(200).json({ offerActive });
 
