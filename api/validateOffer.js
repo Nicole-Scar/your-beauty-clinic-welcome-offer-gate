@@ -114,7 +114,7 @@ export default async function validateOffer(req, res) {
         }
       }
     }
-  }
+
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {

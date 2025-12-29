@@ -41,6 +41,14 @@ export default async function handler(req, res) {
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([name, value]) => ({ name, value }));
 
+    console.log(
+      "🧩 checkOfferStatus custom fields:",
+      cfArray.map(f => ({
+        name: f.name,
+        value: f.value
+      }))
+    );
+
     let offerActive = false;
     let expiryDate = null;
 
