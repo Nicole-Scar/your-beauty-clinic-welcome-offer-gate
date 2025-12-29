@@ -1,13 +1,8 @@
 // /api/checkOfferStatus.js
-import fetch from 'node-fetch';
-
-export const config = {
-  runtime: 'nodejs'  // ensures serverless Node runtime
-};
+import fetch from 'node-fetch'; // top-level import, no dynamic import
 
 export default async function handler(req, res) {
-  const startTime = new Date();
-  console.log(`🟢 [${startTime.toISOString()}] checkOfferStatus triggered`);
+  console.log("🟢 checkOfferStatus triggered");
 
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,7 +10,7 @@ export default async function handler(req, res) {
 
     const { contactId } = req.query;
     if (!contactId) {
-      console.log('❌ Missing contactId');
+      console.log("❌ Missing contactId");
       return res.status(400).json({ offerActive: false });
     }
 
@@ -29,22 +24,19 @@ export default async function handler(req, res) {
 
     let contact = null;
     for (const endpoint of endpoints) {
-      console.log(`🔹 Fetching: ${endpoint}`);
+      console.log(`🔹 Fetching ${endpoint}`);
       const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${apiKey}` } });
       const data = await response.json().catch(() => ({}));
-      const candidate = data.contact || data;
-      if (response.ok && candidate && (candidate.id || candidate.contact)) {
-        contact = candidate;
-        break;
-      }
+      contact = data.contact || data;
+      if (response.ok && contact && (contact.id || contact.contact)) break;
     }
 
     if (!contact) {
-      console.log('❌ Contact not found');
+      console.log("❌ Contact not found");
       return res.status(404).json({ offerActive: false });
     }
 
-    console.log('📄 Raw contact data:', JSON.stringify(contact, null, 2));
+    console.log("📄 Contact data:", JSON.stringify(contact));
 
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
@@ -52,7 +44,6 @@ export default async function handler(req, res) {
 
     let offerActive = false;
     let expiryDate = null;
-    let expiryRawValue = null;
 
     for (const f of cfArray) {
       const val = Array.isArray(f.value) ? f.value[0] : f.value;
@@ -62,18 +53,16 @@ export default async function handler(req, res) {
       const strVal = String(val).trim();
 
       if (name === 'welcome offer active' && strVal.toLowerCase() === 'yes') offerActive = true;
-
       if (name === 'welcome offer expiry') {
         const parsed = new Date(strVal);
         if (!isNaN(parsed.getTime())) {
           expiryDate = parsed;
-          expiryRawValue = strVal;
           if (parsed < new Date()) offerActive = false;
         }
       }
     }
 
-    console.log("🧪 Parsed fields:", { offerActive, expiryRawValue, expiryDate });
+    console.log("🧪 checkOfferStatus result:", { offerActive, expiryDate });
     return res.status(200).json({ offerActive });
 
   } catch (err) {
