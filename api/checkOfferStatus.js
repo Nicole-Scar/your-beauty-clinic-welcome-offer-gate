@@ -1,12 +1,23 @@
-// checkOfferStatus.js
+// /api/checkOfferStatus.js
+import fetch from 'node-fetch';
+
+export const config = {
+  runtime: 'nodejs'  // ensures serverless Node runtime
+};
+
 export default async function handler(req, res) {
+  const startTime = new Date();
+  console.log(`🟢 [${startTime.toISOString()}] checkOfferStatus triggered`);
+
   try {
-    const fetch = (await import('node-fetch')).default;
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
     const { contactId } = req.query;
-    if (!contactId) return res.status(400).json({ offerActive: false });
+    if (!contactId) {
+      console.log('❌ Missing contactId');
+      return res.status(400).json({ offerActive: false });
+    }
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
@@ -18,6 +29,7 @@ export default async function handler(req, res) {
 
     let contact = null;
     for (const endpoint of endpoints) {
+      console.log(`🔹 Fetching: ${endpoint}`);
       const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${apiKey}` } });
       const data = await response.json().catch(() => ({}));
       const candidate = data.contact || data;
@@ -27,7 +39,12 @@ export default async function handler(req, res) {
       }
     }
 
-    if (!contact) return res.status(404).json({ offerActive: false });
+    if (!contact) {
+      console.log('❌ Contact not found');
+      return res.status(404).json({ offerActive: false });
+    }
+
+    console.log('📄 Raw contact data:', JSON.stringify(contact, null, 2));
 
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
@@ -56,7 +73,7 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log("🧪 checkOfferStatus result:", { contactId, expiryRawValue, expiryDate, offerActive });
+    console.log("🧪 Parsed fields:", { offerActive, expiryRawValue, expiryDate });
     return res.status(200).json({ offerActive });
 
   } catch (err) {
