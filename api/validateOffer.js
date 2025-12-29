@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 function norm(v) {
   return (v === null || v === undefined) ? '' : String(v).trim();
 }
@@ -7,7 +8,6 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
-    const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
     const { contactId, booking_source } = req.query;
 
     if (!contactId) {

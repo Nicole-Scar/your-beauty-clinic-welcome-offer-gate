@@ -1,4 +1,3 @@
-// /api/checkOfferStatus.js
 import fetch from 'node-fetch'; // top-level import, no dynamic import
 
 export default async function handler(req, res) {

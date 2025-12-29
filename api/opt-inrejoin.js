@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 function norm(v) {
   return v === null || v === undefined ? '' : String(v).trim();
 }
@@ -19,7 +20,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    const fetch = (await import('node-fetch')).default;
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
 
