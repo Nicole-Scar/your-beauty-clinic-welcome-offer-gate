@@ -1,7 +1,7 @@
-import fetch from 'node-fetch'; // top-level import, no dynamic import
-
 export default async function handler(req, res) {
+  const fetch = (await import('node-fetch')).default;
   console.log("🟢 checkOfferStatus triggered");
+
 
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
