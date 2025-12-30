@@ -90,7 +90,7 @@ export default async function validateOffer(req, res) {
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    if (true) {
+
       for (const f of cf) {
         if (!f) continue;
         const name = (f.name || f.label || "").trim().toLowerCase();
@@ -126,7 +126,8 @@ export default async function validateOffer(req, res) {
         } else {
           console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
         }
-      }
+     }
+
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
