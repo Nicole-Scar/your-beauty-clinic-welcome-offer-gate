@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 function norm(v) {
   return (v === null || v === undefined) ? '' : String(v).trim();
 }
@@ -8,6 +7,7 @@ function normLower(v) {
 
 export default async function validateOffer(req, res) {
   try {
+    const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
     const { contactId, booking_source } = req.query;
 
     if (!contactId) {
@@ -20,6 +20,8 @@ export default async function validateOffer(req, res) {
     const locationId = process.env.GHL_LOCATION_ID;
     const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
     const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
+    const fieldWelcomeActiveId = process.env.GHL_FIELD_WELCOME_ACTIVE_ID || null;
+
 
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
@@ -67,12 +69,25 @@ export default async function validateOffer(req, res) {
     let offerBooked = null;
     let welcomeOfferExpiry = null; // Added for expiry
 
-    if (fieldWelcomeId || fieldOfferBookedId) {
+    if (fieldWelcomeId || fieldOfferBookedId || fieldWelcomeActiveId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
-        if (fieldWelcomeId && f.id === fieldWelcomeId) welcomeOfferAccess = valueIsYes(f.value);
-        if (fieldOfferBookedId && f.id === fieldOfferBookedId) offerBooked = valueIsYes(f.value);
+
+        if (fieldWelcomeId && f.id === fieldWelcomeId) {
+          welcomeOfferAccess = valueIsYes(f.value);
+        }
+
+        if (fieldWelcomeActiveId && f.id === fieldWelcomeActiveId) {
+          welcomeOfferAccess = valueIsYes(f.value);
+          console.log("🔎 Welcome Offer Active (explicit) =>", welcomeOfferAccess);
+        }
+
+        if (fieldOfferBookedId && f.id === fieldOfferBookedId) {
+          offerBooked = valueIsYes(f.value);
+        }
       }
+    }
+
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
@@ -114,7 +129,7 @@ export default async function validateOffer(req, res) {
         }
       }
     }
-
+  }
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
@@ -147,7 +162,14 @@ export default async function validateOffer(req, res) {
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
     console.log("💡 Forwarded booking_source:", booking_source);
 
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
+    const isExpired = welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : false;
+
+    const isValid =
+     hasTag &&
+     welcomeOfferAccess === true &&
+     offerBooked === false &&
+     !isExpired;
+
     console.log("➡️ isValid:", isValid);
 
 
