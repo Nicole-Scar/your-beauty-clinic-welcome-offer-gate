@@ -5,9 +5,46 @@ function normLower(v) {
   return norm(v).toLowerCase();
 }
 
+// --- Helper function to safely parse Expiry and log Active
+function parseExpiryAndActive(customFields) {
+  let expiry = null;
+  customFields.forEach(f => {
+    if (!f) return;
+    const name = (f.name || f.label || "").toLowerCase();
+    const val = f.value;
+
+    // Parse Expiry
+    if (name.includes("expiry") || name.includes("expiration")) {
+      const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+      let parsed = null;
+
+      const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (isoMatch) {
+        const [_, year, month, day] = isoMatch;
+        parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        parsed = new Date(cleaned);
+      }
+
+      if (!isNaN(parsed.getTime())) {
+        if (!expiry || parsed > expiry) expiry = parsed;
+        console.log("🗓️ Welcome Offer Expiry field (" + name + ") value:", val, "=> parsed:", parsed.toISOString().slice(0, 10));
+      } else {
+        console.log("⚠️ Expiry field invalid (" + name + ") =>", val);
+      }
+    }
+
+    // Log Active
+    if (name.includes("active")) {
+      console.log("🔎 Welcome Offer Active field (" + name + ") value:", val);
+    }
+  });
+  return expiry;
+}
+
 export default async function validateOffer(req, res) {
   try {
-    const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
+    const fetch = (await import('node-fetch')).default; 
     const { contactId, booking_source } = req.query;
 
     if (!contactId) {
@@ -66,7 +103,6 @@ export default async function validateOffer(req, res) {
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
-    let welcomeOfferExpiry = null;
 
     // Map by env IDs
     if (fieldWelcomeId || fieldOfferBookedId || fieldWelcomeActiveId) {
@@ -78,8 +114,7 @@ export default async function validateOffer(req, res) {
         }
 
         if (fieldWelcomeActiveId && f.id === fieldWelcomeActiveId) {
-          welcomeOfferAccess = valueIsYes(f.value);
-          console.log("🔎 Welcome Offer Active (explicit) =>", welcomeOfferAccess);
+          console.log("🔎 Welcome Offer Active (explicit) value:", f.value);
         }
 
         if (fieldOfferBookedId && f.id === fieldOfferBookedId) {
@@ -104,37 +139,10 @@ export default async function validateOffer(req, res) {
         offerBooked = valueIsYes(val);
         console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
       }
+    }
 
-      // Parse Welcome Offer Expiry
-      if (name.includes("expiry") || name.includes("expiration")) {
-        const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-        let parsed = null;
-
-        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (isoMatch) {
-          const [_, year, month, day] = isoMatch;
-          parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-          parsed = new Date(cleaned);
-        }
-
-        if (!isNaN(parsed.getTime())) {
-          welcomeOfferExpiry = parsed;
-          console.log(
-            "🗓️ Welcome Offer Expiry field (" + name + ") value:",
-            val,
-            "=> parsed:",
-            welcomeOfferExpiry.toISOString().slice(0, 10)
-          );
-        } else {
-          console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
-        }
-      }
-
-// Log Welcome Offer Active field
-if (name.includes("active")) {
-  console.log("🔎 Welcome Offer Active field (" + name + ") value:", val);
-}
+    // --- Use helper to parse expiry & log active
+    const welcomeOfferExpiry = parseExpiryAndActive(cf);
 
     // Fallback boolean mapping
     if (welcomeOfferAccess === null || offerBooked === null) {
@@ -155,20 +163,13 @@ if (name.includes("active")) {
       }
     }
 
-    if (welcomeOfferAccess === null) {
-      console.log("⚠️ Could not determine welcomeOfferAccess — default false");
-      welcomeOfferAccess = false;
-    }
-    if (offerBooked === null) {
-      console.log("⚠️ Could not determine offerBooked — default false");
-      offerBooked = false;
-    }
+    if (welcomeOfferAccess === null) welcomeOfferAccess = false;
+    if (offerBooked === null) offerBooked = false;
 
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
     console.log("💡 Forwarded booking_source:", booking_source);
 
     const isExpired = welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : false;
-
     const isValid =
       hasTag &&
       welcomeOfferAccess === true &&
@@ -177,7 +178,6 @@ if (name.includes("active")) {
 
     console.log("➡️ isValid:", isValid);
 
-    // Redirect
     const qs = new URLSearchParams({ contactId });
     if (booking_source) qs.set("booking_source", booking_source);
 
