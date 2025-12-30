@@ -59,6 +59,12 @@ export default async function validateOffer(req, res) {
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
     console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
+    // === LOGGING for Active & Expiry fields
+    const fieldActive = cf.find(f => f.id === fieldWelcomeActiveId);
+    const fieldExpiry = cf.find(f => /expiry|expiration/.test((f.name||f.label||"").toLowerCase()));
+    console.log("🟢 Field Welcome Active (raw):", fieldActive ? fieldActive.value : "N/A");
+    console.log("🟢 Field Welcome Expiry (raw):", fieldExpiry ? fieldExpiry.value : "N/A");
+
     const valueIsYes = (v) => {
       const s = normLower(v);
       return s === "yes" || s === "true" || s === "1";
@@ -66,9 +72,8 @@ export default async function validateOffer(req, res) {
 
     let welcomeOfferAccess = null;
     let offerBooked = null;
-    let welcomeOfferExpiry = null;
+    let welcomeOfferExpiry = null; // Added for expiry
 
-    // Map by env IDs
     if (fieldWelcomeId || fieldOfferBookedId || fieldWelcomeActiveId) {
       for (const f of cf) {
         if (!f || !f.id) continue;
@@ -86,10 +91,10 @@ export default async function validateOffer(req, res) {
           offerBooked = valueIsYes(f.value);
         }
       }
+
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    // Infer fields by name
     for (const f of cf) {
       if (!f) continue;
       const name = (f.name || f.label || "").trim().toLowerCase();
@@ -99,14 +104,14 @@ export default async function validateOffer(req, res) {
         welcomeOfferAccess = valueIsYes(val);
         console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
       }
-
       if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
         offerBooked = valueIsYes(val);
         console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
       }
 
-      // Parse Welcome Offer Expiry
+      // === New: parse Welcome Offer Expiry by field name
       if (name.includes("expiry") || name.includes("expiration")) {
+        const val = f.value;
         const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
         let parsed = null;
 
@@ -124,25 +129,22 @@ export default async function validateOffer(req, res) {
         } else {
           console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
         }
-      } // <-- closes expiry if
-    } // <-- closes for (const f of cf)
+      }
+    }
 
-    // Fallback boolean mapping
-    if (welcomeOfferAccess === null || offerBooked === null) {
-      const booleanFields = cf
-        .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
-        .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
+    // === Fallback boolean mapping (order-independent)
+    const booleanFields = cf
+      .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
+      .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
 
-      console.log("🔎 boolean-like custom fields:", booleanFields.map(b => ({ id: b.id, name: b.name, val: b.val })));
-
-      if (booleanFields.length === 1) {
-        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
-        if (offerBooked === null) offerBooked = false;
-        console.log("🔎 Fallback: single boolean field mapped to welcomeOfferAccess");
-      } else if (booleanFields.length >= 2) {
-        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
-        if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].raw.value);
-        console.log("🔎 Fallback: first boolean -> welcomeOfferAccess, second -> offerBooked");
+    for (const f of booleanFields) {
+      if (welcomeOfferAccess === null && /welcome|offeraccess|welcomeoffer|access/.test(f.name)) {
+        welcomeOfferAccess = valueIsYes(f.val);
+        console.log("🔎 Fallback mapped welcomeOfferAccess from field:", f.name, "=>", f.val);
+      }
+      if (offerBooked === null && /book|booked|offerbook|bookedoffer/.test(f.name)) {
+        offerBooked = valueIsYes(f.val);
+        console.log("🔎 Fallback mapped offerBooked from field:", f.name, "=>", f.val);
       }
     }
 
@@ -168,10 +170,24 @@ export default async function validateOffer(req, res) {
 
     console.log("➡️ isValid:", isValid);
 
-    // Redirect
+    // === Validation summary log (with expiry)
+    console.log("📝 Validation Summary:");
+    console.log("🏷️ Contact tags:", contact.tags);
+    console.log("✅ hasTag:", hasTag);
+    console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
+    console.log("🎯 offerBooked:", offerBooked);
+    console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
+    console.log("📅 Today:", new Date().toISOString());
+    console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
+    console.log("💡 Forwarded booking_source:", booking_source);
+
+    // Build query string for redirect
     const qs = new URLSearchParams({ contactId });
     if (booking_source) qs.set("booking_source", booking_source);
 
+    console.log("💡 Forwarded booking_source:", booking_source);
+
+    // Final redirect
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
