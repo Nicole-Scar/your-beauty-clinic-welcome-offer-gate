@@ -5,7 +5,7 @@ function normLower(v) {
   return norm(v).toLowerCase();
 }
 
-export default async function validateOffer(req, res) {
+export default async function validateExpiryFields(req, res) {
   try {
     const fetch = (await import('node-fetch')).default;
     const { contactId } = req.query;
@@ -38,74 +38,64 @@ export default async function validateOffer(req, res) {
     }
 
     if (!contact) {
-      console.error("❌ No contact found after both endpoints");
+      console.error("❌ No contact found");
       return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
 
-    // === Parse welcome fields inside the same file ===
-    function parseWelcomeFields(customFields) {
-      const cfArray = Array.isArray(customFields)
-        ? customFields
-        : Object.entries(customFields || {}).map(([key, value]) => ({ name: key, value }));
+    // Convert custom fields to array
+    const cfArray = Array.isArray(contact.customField)
+      ? contact.customField
+      : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
-      let welcomeOfferAccess = null;
-      let welcomeOfferActive = null;
-      let welcomeOfferExpiry = null;
+    // Parse fields
+    let welcomeOfferActive = null;
+    let welcomeOfferExpiry = null;
 
-      cfArray.forEach((f) => {
-        if (!f) return;
-        const name = (f.name || f.label || "").trim().toLowerCase();
-        const val = f.value;
+    cfArray.forEach((f) => {
+      if (!f) return;
+      const name = (f.name || f.label || "").trim();
+      const val = f.value;
 
-        if (name.includes("welcomeofferaccess") || name.includes("welcomeaccess")) {
-          welcomeOfferAccess = ["yes", "true", "1"].includes(normLower(val));
-          console.log("🔎 welcomeOfferAccess detected:", val, "=>", welcomeOfferAccess);
+      console.log("📌 Custom Field:", name, "Value:", val);
+
+      // Active
+      if (name.toLowerCase().includes("active")) {
+        welcomeOfferActive = ["yes", "true", "1"].includes(normLower(val));
+        console.log("🔎 Detected Welcome Offer Active:", val, "=>", welcomeOfferActive);
+      }
+
+      // Expiry
+      if (name.toLowerCase().includes("expiry") || name.toLowerCase().includes("expiration")) {
+        const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+        let parsed = null;
+        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+          const [_, year, month, day] = isoMatch;
+          parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          parsed = new Date(cleaned);
         }
 
-        if (name.includes("active")) {
-          welcomeOfferActive = ["yes", "true", "1"].includes(normLower(val));
-          console.log("🔎 welcomeOfferActive detected:", val, "=>", welcomeOfferActive);
+        if (!isNaN(parsed.getTime())) {
+          welcomeOfferExpiry = parsed;
+          console.log("🗓️ Detected Welcome Offer Expiry:", val, "=>", welcomeOfferExpiry.toISOString().slice(0, 10));
+        } else {
+          console.log("⚠️ Invalid expiry field:", val);
         }
+      }
+    });
 
-        if (name.includes("expiry") || name.includes("expiration")) {
-          const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-          let parsed = null;
-          const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (isoMatch) {
-            const [_, year, month, day] = isoMatch;
-            parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-          } else {
-            parsed = new Date(cleaned);
-          }
-
-          if (!isNaN(parsed.getTime())) {
-            welcomeOfferExpiry = parsed;
-            console.log("🗓️ welcomeOfferExpiry detected:", val, "=>", welcomeOfferExpiry.toISOString().slice(0, 10));
-          } else {
-            console.log("⚠️ Expiry field found but invalid:", val);
-          }
-        }
-      });
-
-      return { welcomeOfferAccess, welcomeOfferActive, welcomeOfferExpiry };
-    }
-
-    const { welcomeOfferAccess, welcomeOfferActive, welcomeOfferExpiry } = parseWelcomeFields(contact.customField);
-
-    console.log("🎯 Final parsed values:");
-    console.log("welcomeOfferAccess:", welcomeOfferAccess);
+    console.log("🎯 Final parsed fields:");
     console.log("welcomeOfferActive:", welcomeOfferActive);
     console.log("welcomeOfferExpiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
 
     const isExpired = welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : false;
-    const isValid = welcomeOfferAccess && welcomeOfferActive && !isExpired;
+    console.log("⏰ Is expired?", isExpired);
 
-    console.log("➡️ isValid:", isValid);
-
-    return res.json({ welcomeOfferAccess, welcomeOfferActive, welcomeOfferExpiry, isExpired, isValid });
+    return res.json({ welcomeOfferActive, welcomeOfferExpiry, isExpired });
 
   } catch (err) {
-    console.error("🔥 Error in validateOffer:", err);
+    console.error("🔥 Error in validateExpiryFields:", err);
     return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
   }
 }
