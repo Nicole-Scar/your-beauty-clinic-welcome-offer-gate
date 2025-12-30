@@ -1,4 +1,4 @@
-function norm(v) {
+function norm(v) { 
   return (v === null || v === undefined) ? '' : String(v).trim();
 }
 function normLower(v) {
@@ -66,6 +66,7 @@ export default async function validateOffer(req, res) {
     let welcomeOfferAccess = null;
     let offerBooked = null;
     let welcomeOfferExpiry = null; // Added for expiry
+    let welcomeOfferActive = null; // Added for logging Active field
 
     if (fieldWelcomeId || fieldOfferBookedId) {
       for (const f of cf) {
@@ -76,47 +77,41 @@ export default async function validateOffer(req, res) {
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
 
-    if (true) {
-      for (const f of cf) {
-        if (!f) continue;
-        const name = (f.name || f.label || "").trim().toLowerCase();
-        const val = f.value;
+    for (const f of cf) {
+      if (!f) continue;
+      const name = (f.name || f.label || "").trim().toLowerCase();
+      const val = f.value;
 
-        if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
-          welcomeOfferAccess = valueIsYes(val);
-          console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
-        }
-        if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
-          offerBooked = valueIsYes(val);
-          console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
-        }
+      // Existing WelcomeOfferAccess & OfferBooked logic is untouched
+      if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
+        welcomeOfferAccess = valueIsYes(val);
+        console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
+      }
+      if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
+        offerBooked = valueIsYes(val);
+        console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
+      }
 
-        // === New: parse Welcome Offer Expiry by field name
-        if (name.includes("expiry") || name.includes("expiration")) {
-          const val = f.value;
-          const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-          let parsed = null;
-
-
-          const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (isoMatch) {
-            const [_, year, month, day] = isoMatch;
-            parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-            parsed = new Date(cleaned);
-        }
+      // === Updated Welcome Offer Expiry & Active
+      if (name.includes("expiry") || name.includes("expiration")) {
+        const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+        let parsed = new Date(cleaned);
 
         if (!isNaN(parsed.getTime())) {
-          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
-          console.log("🗓️ Inferred Welcome Offer Expiry (" + name + ") =>", welcomeOfferExpiry.toISOString().slice(0, 10));
+          welcomeOfferExpiry = parsed;
+          console.log("🗓️ Welcome Offer Expiry field (" + name + ") value:", val, "=> parsed:", welcomeOfferExpiry.toISOString().slice(0, 10));
         } else {
           console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
         }
       }
-    }
-  }
 
-    // === Fallback boolean mapping restored, but ignore numeric fields ===
+      if (name.includes("active")) {
+        welcomeOfferActive = val;
+        console.log("🔎 Welcome Offer Active field (" + name + ") value:", val);
+      }
+    }
+
+    // === Fallback boolean mapping preserved, untouched
     if (welcomeOfferAccess === null || offerBooked === null) {
       const booleanFields = cf
         .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
@@ -145,38 +140,24 @@ export default async function validateOffer(req, res) {
     }
 
     console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
-    console.log("💡 Forwarded booking_source:", booking_source);
-
-    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false);
-    console.log("➡️ isValid:", isValid);
-
-
-    // === Validation summary log (with expiry)
-    console.log("📝 Validation Summary:");
-    console.log("🏷️ Contact tags:", contact.tags);
-    console.log("✅ hasTag:", hasTag);
-    console.log("🎯 welcomeOfferAccess:", welcomeOfferAccess);
-    console.log("🎯 offerBooked:", offerBooked);
     console.log("🗓️ Welcome Offer Expiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
-    console.log("📅 Today:", new Date().toISOString());
-    console.log("⏰ Offer expired?", welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : "N/A");
+    console.log("🔎 Welcome Offer Active:", welcomeOfferActive);
     console.log("💡 Forwarded booking_source:", booking_source);
+
+    const isExpired = welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : false;
+    const isValid = hasTag && (welcomeOfferAccess === true) && (offerBooked === false) && !isExpired;
+
+    console.log("➡️ isValid:", isValid);
 
     // Build query string for redirect
     const qs = new URLSearchParams({ contactId });
     if (booking_source) qs.set("booking_source", booking_source);
 
-
-    console.log("💡 Forwarded booking_source:", booking_source);
-
-    
-    // Final redirect
     const redirectTo = isValid
       ? `https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-161477?${qs.toString()}`
       : "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971";
 
     console.log("➡️ Redirecting to:", redirectTo);
-
 
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
