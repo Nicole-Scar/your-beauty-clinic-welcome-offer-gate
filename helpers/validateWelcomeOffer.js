@@ -1,46 +1,40 @@
-function norm(v) {
-  return (v === null || v === undefined) ? '' : String(v).trim();
-}
-function normLower(v) {
-  return norm(v).toLowerCase();
-}
-
-export function validateWelcomeOffer(customFields) {
-  let welcomeActive = null;
+// helpers/offerFields.js
+export function parseWelcomeFields(customFields) {
   let welcomeOfferAccess = null;
-  let welcomeExpiry = null;
+  let welcomeOfferActive = null;
 
-  const valueIsYes = (v) => ["yes", "true", "1"].includes(normLower(v));
+  if (!Array.isArray(customFields)) {
+    console.log("⚠️ No custom fields provided");
+    return { welcomeOfferAccess, welcomeOfferActive };
+  }
 
   for (const f of customFields) {
     if (!f) continue;
     const name = (f.name || f.label || "").trim().toLowerCase();
     const val = f.value;
 
-    if (name.includes("active")) {
-      welcomeActive = valueIsYes(val);
+    // === welcomeOfferAccess ===
+    if (name.includes("welcomeofferaccess") || name.includes("welcomeaccess")) {
+      welcomeOfferAccess = String(val).trim().toLowerCase() === "yes";
+      console.log("🔎 Welcome Offer Access field found:", val, "=>", welcomeOfferAccess);
     }
 
-    if (name.includes("welcome")) {
-      welcomeOfferAccess = valueIsYes(val);
-    }
-
-    if (name.includes("expiry") || name.includes("expiration")) {
-      const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-      let parsed = new Date(cleaned);
-      if (!isNaN(parsed.getTime())) {
-        welcomeExpiry = parsed;
-      }
+    // === Welcome Offer Active ===
+    if (name.includes("welcomeofferactive") || name.includes("active")) {
+      welcomeOfferActive = String(val).trim().toLowerCase() === "yes";
+      console.log("🔎 Welcome Offer Active field found:", val, "=>", welcomeOfferActive);
     }
   }
 
-  const isExpired = welcomeExpiry ? new Date() > welcomeExpiry : false;
+  // Defaults if not found
+  if (welcomeOfferAccess === null) {
+    console.log("⚠️ Could not determine welcomeOfferAccess — default false");
+    welcomeOfferAccess = false;
+  }
+  if (welcomeOfferActive === null) {
+    console.log("⚠️ Could not determine welcomeOfferActive — default false");
+    welcomeOfferActive = false;
+  }
 
-  console.log("🔹 Welcome Offer Validation:");
-  console.log("Active:", welcomeActive);
-  console.log("Access:", welcomeOfferAccess);
-  console.log("Expiry:", welcomeExpiry ? welcomeExpiry.toISOString().slice(0, 10) : "N/A");
-  console.log("Expired?", isExpired);
-
-  return { welcomeActive, welcomeOfferAccess, welcomeExpiry, isExpired };
+  return { welcomeOfferAccess, welcomeOfferActive };
 }
