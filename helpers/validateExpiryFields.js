@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 function norm(v) {
   return v === null || v === undefined ? "" : String(v).trim();
 }
@@ -7,12 +10,12 @@ function normLower(v) {
 
 export default async function validateExpiryFields(req, res) {
   try {
-    const fetch = (await import('node-fetch')).default;
+    const fetch = (await import("node-fetch")).default;
     const { contactId } = req.query;
 
     if (!contactId) {
-      console.log("❌ No contactId in URL");
-      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+      console.error("❌ No contactId in URL");
+      return res.status(400).json({ error: "No contactId" });
     }
 
     const apiKey = process.env.GHL_API_KEY;
@@ -32,22 +35,20 @@ export default async function validateExpiryFields(req, res) {
       const candidate = data.contact || data;
       if (response.ok && candidate && (candidate.id || candidate.contact)) {
         contact = data.contact || candidate;
-        console.log("✅ Contact fetched:", contact.id || contact);
+        console.error("✅ Contact fetched:", contact.id || contact);
         break;
       }
     }
 
     if (!contact) {
       console.error("❌ No contact found");
-      return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+      return res.status(404).json({ error: "Contact not found" });
     }
 
-    // Convert custom fields to array
     const cfArray = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
 
-    // Parse fields
     let welcomeOfferActive = null;
     let welcomeOfferExpiry = null;
 
@@ -56,15 +57,14 @@ export default async function validateExpiryFields(req, res) {
       const name = (f.name || f.label || "").trim();
       const val = f.value;
 
-      console.log("📌 Custom Field:", name, "Value:", val);
+      // write all logs to Vercel
+      console.error("📌 Custom Field:", name, "Value:", val);
 
-      // Active
       if (name.toLowerCase().includes("active")) {
         welcomeOfferActive = ["yes", "true", "1"].includes(normLower(val));
-        console.log("🔎 Detected Welcome Offer Active:", val, "=>", welcomeOfferActive);
+        console.error("🔎 Welcome Offer Active detected:", val, "=>", welcomeOfferActive);
       }
 
-      // Expiry
       if (name.toLowerCase().includes("expiry") || name.toLowerCase().includes("expiration")) {
         const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
         let parsed = null;
@@ -78,24 +78,24 @@ export default async function validateExpiryFields(req, res) {
 
         if (!isNaN(parsed.getTime())) {
           welcomeOfferExpiry = parsed;
-          console.log("🗓️ Detected Welcome Offer Expiry:", val, "=>", welcomeOfferExpiry.toISOString().slice(0, 10));
+          console.error("🗓️ Welcome Offer Expiry detected:", val, "=>", welcomeOfferExpiry.toISOString().slice(0, 10));
         } else {
-          console.log("⚠️ Invalid expiry field:", val);
+          console.error("⚠️ Invalid expiry field:", val);
         }
       }
     });
 
-    console.log("🎯 Final parsed fields:");
-    console.log("welcomeOfferActive:", welcomeOfferActive);
-    console.log("welcomeOfferExpiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
+    console.error("🎯 Final parsed values:");
+    console.error("welcomeOfferActive:", welcomeOfferActive);
+    console.error("welcomeOfferExpiry:", welcomeOfferExpiry ? welcomeOfferExpiry.toISOString().slice(0, 10) : "N/A");
 
     const isExpired = welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : false;
-    console.log("⏰ Is expired?", isExpired);
+    console.error("⏰ Is expired?", isExpired);
 
     return res.json({ welcomeOfferActive, welcomeOfferExpiry, isExpired });
 
   } catch (err) {
     console.error("🔥 Error in validateExpiryFields:", err);
-    return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
+    return res.status(500).json({ error: "Server error" });
   }
 }
