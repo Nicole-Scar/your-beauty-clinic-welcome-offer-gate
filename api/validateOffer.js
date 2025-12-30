@@ -108,8 +108,7 @@ export default async function validateOffer(req, res) {
           console.log("🔎 Welcome Offer Active field (" + name + ") value:", val);
         }
       }
-    }
-  }
+
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
