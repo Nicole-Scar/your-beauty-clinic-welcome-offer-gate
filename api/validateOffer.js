@@ -107,7 +107,7 @@ export default async function validateOffer(req, res) {
         if (name.includes("active")) {
           console.log("🔎 Welcome Offer Active field (" + name + ") value:", val);
         }
-      }
+
 
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
