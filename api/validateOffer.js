@@ -5,57 +5,9 @@ function normLower(v) {
   return norm(v).toLowerCase();
 }
 
-// --- Helper for logging & validating Active and Expiry fields
-function logActiveAndExpiry(customFields) {
-  let expiry = null;
-  let active = null;
-
-  customFields.forEach(f => {
-    if (!f) return;
-    const name = (f.name || f.label || "").trim().toLowerCase();
-    const val = f.value;
-
-    // Check for Active
-    if (name.includes("active")) {
-      active = val;
-      console.log("🔎 Welcome Offer Active field (" + name + ") value:", val);
-    }
-
-    // Check for Expiry
-    if (name.includes("expiry") || name.includes("expiration")) {
-      const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-      let parsed = null;
-
-      const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (isoMatch) {
-        const [_, year, month, day] = isoMatch;
-        parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      } else {
-        parsed = new Date(cleaned);
-      }
-
-      if (!isNaN(parsed.getTime())) {
-        if (!expiry || parsed > expiry) expiry = parsed;
-        console.log("🗓️ Welcome Offer Expiry field (" + name + ") value:", val, "=> parsed:", parsed.toISOString().slice(0, 10));
-      } else {
-        console.log("⚠️ Expiry field invalid (" + name + ") =>", val);
-      }
-    }
-  });
-
-  const isExpired = expiry ? new Date() > expiry : false;
-
-  console.log("📝 Validation Summary for Active & Expiry:");
-  console.log("💡 Active value:", active ?? "N/A");
-  console.log("🗓️ Expiry value:", expiry ? expiry.toISOString().slice(0, 10) : "N/A");
-  console.log("⏰ Expired?", expiry ? isExpired : "N/A");
-
-  return { active, expiry, isExpired };
-}
-
 export default async function validateOffer(req, res) {
   try {
-    const fetch = (await import('node-fetch')).default; 
+    const fetch = (await import('node-fetch')).default; // dynamic import to prevent ESM crash
     const { contactId, booking_source } = req.query;
 
     if (!contactId) {
@@ -66,6 +18,9 @@ export default async function validateOffer(req, res) {
 
     const apiKey = process.env.GHL_API_KEY;
     const locationId = process.env.GHL_LOCATION_ID;
+    const fieldWelcomeId = process.env.GHL_FIELD_WELCOME_ID || null;
+    const fieldOfferBookedId = process.env.GHL_FIELD_OFFERBOOKED_ID || null;
+    const fieldWelcomeActiveId = process.env.GHL_FIELD_WELCOME_ACTIVE_ID || null;
 
     const endpoints = [
       `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
@@ -94,37 +49,126 @@ export default async function validateOffer(req, res) {
       return res.redirect(302, "https://yourbeautyclinic.bookedbeauty.co/your-beauty-clinic-welcome-offer-invalid-340971");
     }
 
+    const hasTag = Array.isArray(contact.tags) &&
+      contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
+    console.log("🏷️ Contact tags:", contact.tags);
+    console.log("✅ hasTag:", hasTag);
+
     const cf = Array.isArray(contact.customField)
       ? contact.customField
       : Object.entries(contact.customFields || {}).map(([key, value]) => ({ name: key, value }));
+    console.log("🧩 Raw customField array:", JSON.stringify(cf, null, 2));
 
-    // --- NEW: call helper to log Active & Expiry, safely
-    const { active: welcomeActive, expiry: welcomeExpiry, isExpired } = logActiveAndExpiry(cf);
+    const valueIsYes = (v) => {
+      const s = normLower(v);
+      return s === "yes" || s === "true" || s === "1";
+    };
 
-    // --- existing logic untouched
     let welcomeOfferAccess = null;
     let offerBooked = null;
-    const valueIsYes = (v) => ["yes", "true", "1"].includes(normLower(v));
+    let welcomeOfferExpiry = null;
 
-    cf.forEach(f => {
+    // Map by env IDs
+    if (fieldWelcomeId || fieldOfferBookedId || fieldWelcomeActiveId) {
+      for (const f of cf) {
+        if (!f || !f.id) continue;
+
+        if (fieldWelcomeId && f.id === fieldWelcomeId) {
+          welcomeOfferAccess = valueIsYes(f.value);
+        }
+
+        if (fieldWelcomeActiveId && f.id === fieldWelcomeActiveId) {
+          welcomeOfferAccess = valueIsYes(f.value);
+          console.log("🔎 Welcome Offer Active (explicit) =>", welcomeOfferAccess);
+        }
+
+        if (fieldOfferBookedId && f.id === fieldOfferBookedId) {
+          offerBooked = valueIsYes(f.value);
+        }
+      }
+      console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
+    }
+
+    // Infer fields by name
+    for (const f of cf) {
+      if (!f) continue;
       const name = (f.name || f.label || "").trim().toLowerCase();
       const val = f.value;
 
-      if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess"))) {
+      if ((welcomeOfferAccess === null) && (name.includes("welcome") || name.includes("offeraccess") || name.includes("welcomeoffer") || name.includes("access"))) {
         welcomeOfferAccess = valueIsYes(val);
+        console.log(`🔎 Inferred welcomeOfferAccess from field (${name}) =>`, welcomeOfferAccess);
       }
-      if ((offerBooked === null) && (name.includes("book") || name.includes("booked"))) {
+
+      if ((offerBooked === null) && (name.includes("book") || name.includes("booked") || name.includes("offerbook") || name.includes("bookedoffer"))) {
         offerBooked = valueIsYes(val);
+        console.log(`🔎 Inferred offerBooked from field (${name}) =>`, offerBooked);
       }
-    });
 
-    if (welcomeOfferAccess === null) welcomeOfferAccess = false;
-    if (offerBooked === null) offerBooked = false;
+      // Parse Welcome Offer Expiry
+      if (name.includes("expiry") || name.includes("expiration")) {
+        const cleaned = String(val).trim().replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+        let parsed = null;
 
-    const hasTag = Array.isArray(contact.tags) && contact.tags.some(tag => normLower(tag) === "welcome offer opt-in");
+        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+          const [_, year, month, day] = isoMatch;
+          parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          parsed = new Date(cleaned);
+        }
 
-    const isValid = hasTag && welcomeOfferAccess && !offerBooked && !isExpired;
+        if (!isNaN(parsed.getTime())) {
+          if (!welcomeOfferExpiry || parsed > welcomeOfferExpiry) welcomeOfferExpiry = parsed;
+          console.log("🗓️ Inferred Welcome Offer Expiry (" + name + ") =>", welcomeOfferExpiry.toISOString().slice(0, 10));
+        } else {
+          console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
+        }
+      } // <-- closes expiry if
+    } // <-- closes for (const f of cf)
 
+    // Fallback boolean mapping
+    if (welcomeOfferAccess === null || offerBooked === null) {
+      const booleanFields = cf
+        .map(f => ({ id: f.id || "", name: normLower(f.name || f.label || ""), raw: f, val: normLower(f.value) }))
+        .filter(x => typeof x.raw.value === 'string' && ["yes","no","true","false","1","0",""].includes(x.val));
+
+      console.log("🔎 boolean-like custom fields:", booleanFields.map(b => ({ id: b.id, name: b.name, val: b.val })));
+
+      if (booleanFields.length === 1) {
+        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
+        if (offerBooked === null) offerBooked = false;
+        console.log("🔎 Fallback: single boolean field mapped to welcomeOfferAccess");
+      } else if (booleanFields.length >= 2) {
+        if (welcomeOfferAccess === null) welcomeOfferAccess = valueIsYes(booleanFields[0].raw.value);
+        if (offerBooked === null) offerBooked = valueIsYes(booleanFields[1].raw.value);
+        console.log("🔎 Fallback: first boolean -> welcomeOfferAccess, second -> offerBooked");
+      }
+    }
+
+    if (welcomeOfferAccess === null) {
+      console.log("⚠️ Could not determine welcomeOfferAccess — default false");
+      welcomeOfferAccess = false;
+    }
+    if (offerBooked === null) {
+      console.log("⚠️ Could not determine offerBooked — default false");
+      offerBooked = false;
+    }
+
+    console.log("🎯 final field values -> welcomeOfferAccess:", welcomeOfferAccess, "| offerBooked:", offerBooked);
+    console.log("💡 Forwarded booking_source:", booking_source);
+
+    const isExpired = welcomeOfferExpiry ? new Date() > welcomeOfferExpiry : false;
+
+    const isValid =
+      hasTag &&
+      welcomeOfferAccess === true &&
+      offerBooked === false &&
+      !isExpired;
+
+    console.log("➡️ isValid:", isValid);
+
+    // Redirect
     const qs = new URLSearchParams({ contactId });
     if (booking_source) qs.set("booking_source", booking_source);
 
