@@ -86,7 +86,6 @@ export default async function validateOffer(req, res) {
           offerBooked = valueIsYes(f.value);
         }
       }
-    }
 
       console.log("🔎 Mapped by env IDs:", { fieldWelcomeId, fieldOfferBookedId, welcomeOfferAccess, offerBooked });
     }
@@ -128,8 +127,6 @@ export default async function validateOffer(req, res) {
           console.log("⚠️ Expiry field found but invalid date (" + name + ") =>", val);
         }
       }
-    }
-  }
 
     // === Fallback boolean mapping restored, but ignore numeric fields ===
     if (welcomeOfferAccess === null || offerBooked === null) {
